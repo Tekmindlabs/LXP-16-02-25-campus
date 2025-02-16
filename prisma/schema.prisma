@@ -84,6 +84,7 @@ model Campus {
   roles     CampusRole[]
   features  CampusFeature[]
   sync      CampusSync?
+  classes   Class[]
 
   // Audit fields
   createdAt DateTime @default(now())
@@ -146,6 +147,7 @@ model Building {
   campusId  String
   campus    Campus   @relation(fields: [campusId], references: [id])
   floors    Floor[]
+  classes   Class[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -180,6 +182,7 @@ model Room {
   status    RoomStatus
   resources Json?
   periods   Period[]
+  classes   Class[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
