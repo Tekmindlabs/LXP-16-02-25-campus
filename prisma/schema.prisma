@@ -482,12 +482,17 @@ model Class {
   name               String
   classGroupId       String
   classGroup         ClassGroup                   @relation(fields: [classGroupId], references: [id])
+  campusId           String
+  campus             Campus                       @relation(fields: [campusId], references: [id])
+  buildingId         String?
+  building           Building?                    @relation(fields: [buildingId], references: [id])
+  roomId             String?
+  room               Room?                        @relation(fields: [roomId], references: [id])
   capacity           Int                          @default(30)
-  gradeBook          GradeBook? // One-to-one relation
+  gradeBook          GradeBook?
   termStructureId    String?
   termStructure      ProgramTermStructure?        @relation(fields: [termStructureId], references: [id])
   status             Status                       @default(ACTIVE)
-  // Existing relations
   students           StudentProfile[]
   teachers           TeacherClass[]
   classActivities    ClassActivity[]

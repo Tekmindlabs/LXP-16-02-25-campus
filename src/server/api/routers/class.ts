@@ -1,88 +1,175 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { Status, PrismaClient } from "@prisma/client";
+import { Status, SubmissionStatus } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { DefaultRoles } from '@/utils/permissions';
-import { GradeBookService } from '@/server/services/GradeBookService';
-import { AssessmentService } from '@/server/services/AssessmentService';
-import { TermManagementService } from '@/server/services/TermManagementService';
+import { DefaultRoles } from "@/utils/permissions";
+import { GradeBookService } from "../../services/GradeBookService";
+import { AssessmentService } from "../../services/AssessmentService";
 
-// Helper function to create services with transaction
-function createServices(prisma: PrismaClient) {
+const createServices = (prisma: PrismaClient) => {
 	const assessmentService = new AssessmentService(prisma);
 	return new GradeBookService(prisma, assessmentService);
-}
+};
+
+const classCreateSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    classGroupId: z.string().min(1, "Class Group is required"), 
+    campusId: z.string().min(1, "Campus is required"),
+    buildingId: z.string().optional(),
+    roomId: z.string().optional(),
+    capacity: z.number().min(1, "Capacity must be at least 1"),
+    status: z.nativeEnum(Status),
+    classTutorId: z.string().optional(),
+    teacherIds: z.array(z.string()).optional(),
+    description: z.string().optional(),
+});
+
 
 
 export const classRouter = createTRPCRouter({
-	createClass: protectedProcedure
+	searchClasses: protectedProcedure
 		.input(z.object({
-			name: z.string(),
-			classGroupId: z.string(), // Required field
-			capacity: z.number(),
-			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional().default(Status.ACTIVE),
-			description: z.string().optional(),
-			academicYear: z.string().optional(),
-			semester: z.string().optional(),
-			classTutorId: z.string().optional(),
-			teacherIds: z.array(z.string()).optional(),
+			classGroupId: z.string().optional(),
+			search: z.string().optional(),
+			teacherId: z.string().optional(),
+			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional(),
+			campusId: z.string().optional(),
 		}))
-		.mutation(async ({ ctx, input }) => {
-			const { teacherIds, classTutorId, ...classData } = input;
-			
-			return await ctx.prisma.$transaction(async (tx) => {
-				const newClass = await tx.class.create({
-					data: {
-						...classData,
-						...(teacherIds && {
-							teachers: {
-								create: teacherIds.map(teacherId => ({
-									teacher: {
-										connect: { id: teacherId }
-									},
-									isClassTeacher: teacherId === classTutorId,
-									status: Status.ACTIVE,
-								})),
-							},
-						}),
-					},
-					include: {
-						classGroup: {
-							include: {
-								program: true,
-							},
-						},
+		.query(async ({ ctx, input }) => {
+			const { search, classGroupId, teacherId, status, campusId } = input;
+			return ctx.prisma.class.findMany({
+				where: {
+					...(search && {
+						OR: [
+							{ name: { contains: search, mode: 'insensitive' } },
+						],
+					}),
+					...(classGroupId && { classGroupId }),
+					...(teacherId && {
 						teachers: {
-							include: {
-								teacher: {
-									include: {
-										user: true,
-									},
+							some: { teacherId },
+						},
+					}),
+					...(status && { status }),
+					...(campusId && { campusId }),
+				},
+				include: {
+					classGroup: {
+						include: {
+							program: {
+								include: {
+									assessmentSystem: true,
+									termStructures: true,
 								},
 							},
 						},
-						students: {
-							include: {
-								user: true,
+					},
+					teachers: {
+						include: {
+							teacher: {
+								include: {
+									user: true,
+								},
 							},
 						},
 					},
-				});
+					students: {
+						include: {
+							user: true,
+						},
+					},
 
-				// Initialize gradebook using the helper function
-				const gradeBookService = createServices(tx as PrismaClient);
-				await gradeBookService.initializeGradeBook(newClass.id);
+					gradeBook: {
+						include: {
+							assessmentSystem: true,
+						},
+					},
+				},
 
-
-				return newClass;
+				orderBy: {
+					name: 'asc',
+				},
 			});
 		}),
+
+
+	createClass: protectedProcedure
+		.input(classCreateSchema)
+		.mutation(async ({ ctx, input }) => {
+			return ctx.prisma.class.create({
+				data: {
+					name: input.name,
+					classGroupId: input.classGroupId,
+					campusId: input.campusId,
+					buildingId: input.buildingId,
+					roomId: input.roomId,
+					capacity: input.capacity,
+					status: input.status,
+					teachers: {
+						createMany: {
+							data: [
+								...(input.classTutorId ? [{
+									teacherId: input.classTutorId,
+									isClassTeacher: true,
+									status: Status.ACTIVE,
+								}] : []),
+								...(input.teacherIds?.map(id => ({
+									teacherId: id,
+									isClassTeacher: false,
+									status: Status.ACTIVE,
+								})) || []),
+							],
+						},
+					},
+				},
+				include: {
+					classGroup: {
+						include: {
+							program: {
+								include: {
+									assessmentSystem: true,
+									termStructures: true,
+								},
+							},
+						},
+					},
+					teachers: {
+						include: {
+							teacher: {
+								include: {
+									user: true,
+								},
+							},
+						},
+					},
+					students: {
+						include: {
+							user: true,
+						},
+					},
+
+					gradeBook: {
+						include: {
+							assessmentSystem: true,
+						},
+					},
+				},
+
+			});
+		}),
+
+
+
+
 
 	updateClass: protectedProcedure
 		.input(z.object({
 			id: z.string(),
 			name: z.string().optional(),
 			classGroupId: z.string(), // Required field
+			campusId: z.string().optional(),
+			buildingId: z.string().optional(),
+			roomId: z.string().optional(),
 			capacity: z.number().optional(),
 			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional(),
 			description: z.string().optional(),
@@ -92,7 +179,7 @@ export const classRouter = createTRPCRouter({
 			teacherIds: z.array(z.string()).optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			const { id, teacherIds, classTutorId, ...data } = input;
+			const { id, teacherIds, classTutorId, campusId, buildingId, roomId, ...data } = input;
 
 			if (teacherIds) {
 				await ctx.prisma.teacherClass.deleteMany({
@@ -113,11 +200,21 @@ export const classRouter = createTRPCRouter({
 
 			return ctx.prisma.class.update({
 				where: { id },
-				data,
+				data: {
+					...data,
+					...(campusId && { campus: { connect: { id: campusId } } }),
+					...(buildingId && { building: { connect: { id: buildingId } } }),
+					...(roomId && { room: { connect: { id: roomId } } }),
+				},
 				include: {
 					classGroup: {
 						include: {
-							program: true,
+							program: {
+								include: {
+									assessmentSystem: true,
+									termStructures: true,
+								},
+							},
 						},
 					},
 					teachers: {
@@ -129,9 +226,19 @@ export const classRouter = createTRPCRouter({
 							},
 						},
 					},
-					students: true,
+					students: {
+						include: {
+							user: true,
+						},
+					},
+					gradeBook: {
+						include: {
+							assessmentSystem: true,
+						},
+					},
 				},
 			});
+
 		}),
 
 	deleteClass: protectedProcedure
@@ -163,7 +270,8 @@ export const classRouter = createTRPCRouter({
 						},
 					},
 					students: true,
-					activities: true,
+					classActivities: true,
+					unifiedActivities: true,
 					timetables: {
 						include: {
 							periods: true,
@@ -173,53 +281,10 @@ export const classRouter = createTRPCRouter({
 			});
 		}),
 
-	searchClasses: protectedProcedure
-		.input(z.object({
-			classGroupId: z.string().optional(), // Make it optional
-			search: z.string().optional(),
-			teacherId: z.string().optional(),
-			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional(),
-		}))
-		.query(async ({ ctx, input }) => {
-			const { search, classGroupId, teacherId, status } = input;
 
-			return ctx.prisma.class.findMany({
-				where: {
-					...(search && {
-						OR: [
-							{ name: { contains: search, mode: 'insensitive' } },
-						],
-					}),
-					...(classGroupId && { classGroupId }),
-					...(teacherId && {
-						teachers: {
-							some: { teacherId },
-						},
-					}),
-					...(status && { status }),
-				},
-				include: {
-					classGroup: {
-						include: {
-							program: true,
-						},
-					},
-					teachers: {
-						include: {
-							teacher: {
-								include: {
-									user: true,
-								},
-							},
-						},
-					},
-					students: true,
-				},
-				orderBy: {
-					name: 'asc',
-				},
-			});
-		}),
+
+
+
 
 	getClassDetails: protectedProcedure
 		.input(z.object({
@@ -253,11 +318,12 @@ export const classRouter = createTRPCRouter({
 							user: true,
 						},
 					},
-					activities: {
+					classActivities: {
 						include: {
 							submissions: true,
 						},
 					},
+					unifiedActivities: true,
 					timetables: {
 						include: {
 							periods: true,
@@ -284,7 +350,7 @@ export const classRouter = createTRPCRouter({
 			// Check user roles and permissions
 			const userRoles = ctx.session?.user?.roles || [];
 			const hasAccess = userRoles.some(role => 
-				[DefaultRoles.ADMIN, DefaultRoles.SUPER_ADMIN, DefaultRoles.TEACHER].includes(role as "admin" | "super-admin" | "teacher")
+				[DefaultRoles.ADMIN, DefaultRoles.SUPER_ADMIN, DefaultRoles.TEACHER].includes(role as DefaultRoles)
 			);
 
 			if (!hasAccess) {
@@ -296,7 +362,9 @@ export const classRouter = createTRPCRouter({
 
 			try {
 				// For teachers, only return their assigned classes
-				if (userRoles.includes(DefaultRoles.TEACHER) && !userRoles.some(role => [DefaultRoles.ADMIN, DefaultRoles.SUPER_ADMIN].includes(role as "admin" | "super-admin"))) {
+				if (userRoles.includes(DefaultRoles.TEACHER) && !userRoles.some(role => 
+					[DefaultRoles.ADMIN, DefaultRoles.SUPER_ADMIN].includes(role as DefaultRoles)
+				)) {
 					return ctx.prisma.class.findMany({
 						where: {
 							teachers: {
@@ -325,7 +393,8 @@ export const classRouter = createTRPCRouter({
 									},
 								},
 							},
-							activities: true,
+							classActivities: true,
+							unifiedActivities: true,
 						},
 					});
 				}
@@ -350,7 +419,8 @@ export const classRouter = createTRPCRouter({
 								},
 							},
 						},
-						activities: true,
+						classActivities: true,
+						unifiedActivities: true,
 					},
 				});
 			} catch (error) {
@@ -395,11 +465,12 @@ export const classRouter = createTRPCRouter({
 							},
 						},
 					},
-					activities: {
+					classActivities: {
 						include: {
 							submissions: true,
 						},
 					},
+					unifiedActivities: true,
 				},
 			});
 		}),
@@ -552,8 +623,8 @@ export const classRouter = createTRPCRouter({
 			// Calculate average scores by date
 			const performanceData = activities.map(activity => ({
 				date: activity.createdAt.toISOString().split('T')[0],
-				averageScore: activity.submissions.reduce((acc, sub) => 
-					acc + ((sub.obtainedMarks ?? 0) / (sub.totalMarks ?? 1) * 100), 0) / 
+				averageScore: activity.submissions.reduce((acc: number, sub: any) => 
+					acc + ((sub.obtainedMarks || 0) / (sub.totalMarks || 1) * 100), 0) / 
 					(activity.submissions.length || 1)
 			}));
 
@@ -568,8 +639,8 @@ export const classRouter = createTRPCRouter({
 					};
 				}
 				
-				const avgScore = activity.submissions.reduce((sum, sub) => 
-					sum + ((sub.obtainedMarks ?? 0) / (sub.totalMarks ?? 1) * 100), 0) / 
+				const avgScore = activity.submissions.reduce((sum: number, sub: any) => 
+					sum + ((sub.obtainedMarks || 0) / (sub.totalMarks || 1) * 100), 0) / 
 					(activity.submissions.length || 1);
 				
 				acc[subjectName].totalScore += avgScore;

@@ -2,17 +2,11 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Status } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { SubjectSyncService } from "@/server/services/SubjectSyncService";
-
-
-
-
-const calendarSchema = z.object({
-	id: z.string(),
-	inheritSettings: z.boolean().optional(),
-});
+import { SubjectSyncService } from "../../services/SubjectSyncService";
+import { calendarSchema } from "@/schemas/calendar";
 
 // Schema for logging subject changes
+
 type SubjectChangeType = 'INITIAL_SUBJECTS_ADDED' | 'SUBJECTS_UPDATED';
 
 interface SubjectChange {
@@ -24,6 +18,24 @@ interface SubjectChange {
 }
 
 export const classGroupRouter = createTRPCRouter({
+	getAllClassGroups: protectedProcedure.query(async ({ ctx }) => {
+		return ctx.prisma.classGroup.findMany({
+			where: {
+				status: Status.ACTIVE,
+			},
+			include: {
+				program: {
+					include: {
+						assessmentSystem: true,
+						termStructures: true,
+					},
+				},
+			},
+			orderBy: {
+				name: 'asc',
+			},
+		});
+	}),
 	create: protectedProcedure
 		.input(z.object({
 			name: z.string(),

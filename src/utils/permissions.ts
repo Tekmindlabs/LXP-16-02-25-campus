@@ -61,18 +61,24 @@ export const Permissions = {
 
 export type Permission = typeof Permissions[keyof typeof Permissions];
 
-export const DefaultRoles = {
-  SUPER_ADMIN: "super-admin",
-  ADMIN: "admin",
-  PROGRAM_COORDINATOR: "program_coordinator",
-  TEACHER: "teacher",
-  STUDENT: "student",
-  PARENT: "parent",
-} as const;
+export enum DefaultRoles {
+  ADMIN = "admin",
+  SUPER_ADMIN = "super-admin",
+  TEACHER = "teacher",
+  STUDENT = "student",
+  PARENT = "parent",
+  COORDINATOR = "coordinator"
+}
 
-export type Role = typeof DefaultRoles[keyof typeof DefaultRoles];
+export const hasRole = (userRoles: string[], role: DefaultRoles) => {
+  return userRoles.includes(role);
+};
 
-export const RolePermissions: Record<Role, Permission[]> = {
+export const hasAnyRole = (userRoles: string[], roles: DefaultRoles[]) => {
+  return roles.some(role => userRoles.includes(role));
+};
+
+export const RolePermissions: Record<DefaultRoles, Permission[]> = {
   [DefaultRoles.SUPER_ADMIN]: [
     ...Object.values(Permissions),
   ],
@@ -94,7 +100,7 @@ export const RolePermissions: Record<Role, Permission[]> = {
     Permissions.CAMPUS_MANAGE,
     Permissions.CAMPUS_DELETE,
   ],
-  [DefaultRoles.PROGRAM_COORDINATOR]: [
+  [DefaultRoles.COORDINATOR]: [
     Permissions.USER_READ,
     Permissions.USER_UPDATE,
     Permissions.CLASS_GROUP_VIEW,

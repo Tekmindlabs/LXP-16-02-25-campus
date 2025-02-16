@@ -32,25 +32,92 @@ export const ClassManagement = () => {
     const { data: teachersData, isLoading: teachersLoading } = api.subject.getAvailableTeachers.useQuery();
     const { data: campusesData, isLoading: campusesLoading } = api.campus.getAll.useQuery();
 
-    // Transform the data to match the Class interface
-    const classes: Class[] = classesData?.map(c => ({
+    type ClassData = {
+        id: string;
+        name: string;
+        classGroupId: string;
+        capacity: number;
+        status: Status;
+        termStructureId: string | null;
+        classGroup: {
+            id: string;
+            name: string;
+            program: {
+                id: string;
+                name: string | null;
+                assessmentSystem: { name: string } | null;
+                termStructures: { name: string }[];
+            };
+        };
+        students: {
+            id: string;
+            user: {
+                name: string | null;
+                email: string | null;
+            };
+        }[];
+        teachers: {
+            teacher: {
+                id: string;
+                user: {
+                    name: string | null;
+                    email: string | null;
+                };
+            };
+            isClassTeacher: boolean;
+        }[];
+        campus: {
+            id: string;
+            name: string;
+        } | null;
+        building: {
+            id: string;
+            name: string;
+        } | null;
+        room: {
+            id: string;
+            number: string;
+            capacity: number;
+        } | null;
+        gradeBook: {
+            id: string;
+            assessmentSystem: {
+                name: string;
+            } | null;
+        } | null;
+        createdAt: Date;
+        updatedAt: Date;
+    };
+
+    const classes: Class[] = classesData?.map((c: ClassData) => ({
         id: c.id,
         name: c.name,
+        classGroupId: c.classGroupId,
         capacity: c.capacity,
         status: c.status,
+        termStructureId: c.termStructureId,
+        campusId: c.campus?.id || '',
+        buildingId: c.building?.id || undefined,
+        roomId: c.room?.id || undefined,
         classGroup: {
             id: c.classGroup.id,
             name: c.classGroup.name,
             program: {
                 id: c.classGroup.program.id,
-                name: c.classGroup.program.name || ''
+                name: c.classGroup.program.name || '',
+                assessmentSystem: c.classGroup.program.assessmentSystem ? {
+                    name: c.classGroup.program.assessmentSystem.name
+                } : undefined,
+                termStructures: c.classGroup.program.termStructures?.map(t => ({
+                    name: t.name
+                })) || []
             }
         },
         students: c.students.map(s => ({
             id: s.id,
             user: {
-                name: s.userId || '',
-                email: s.userId || undefined
+                name: s.user?.name || '',
+                email: s.user?.email || null
             }
         })),
         teachers: c.teachers.map(t => ({
@@ -58,12 +125,33 @@ export const ClassManagement = () => {
                 id: t.teacher.id,
                 user: {
                     name: t.teacher.user?.name || '',
-                    email: t.teacher.user?.email || undefined
+                    email: t.teacher.user.email
                 }
             },
-            isClassTutor: t.isClassTeacher,
+            isClassTeacher: t.isClassTeacher,
             subjects: []
-        }))
+        })),
+        campus: c.campus ? {
+            id: c.campus.id,
+            name: c.campus.name
+        } : undefined,
+        building: c.building ? {
+            id: c.building.id,
+            name: c.building.name
+        } : undefined,
+        room: c.room ? {
+            id: c.room.id,
+            number: c.room.number,
+            capacity: c.room.capacity
+        } : undefined,
+        gradeBook: c.gradeBook ? {
+            id: c.gradeBook.id,
+            assessmentSystem: c.gradeBook.assessmentSystem ? {
+                name: c.gradeBook.assessmentSystem.name
+            } : undefined
+        } : undefined,
+        createdAt: new Date(c.createdAt),
+        updatedAt: new Date(c.updatedAt)
     })) || [];
 
     const teachers = teachersData?.map(t => ({
