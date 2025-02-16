@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { Status, SubmissionStatus } from "@prisma/client";
+import { PrismaClient, Status, Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { DefaultRoles } from "@/utils/permissions";
 import { GradeBookService } from "../../services/GradeBookService";
@@ -96,32 +96,37 @@ export const classRouter = createTRPCRouter({
 	createClass: protectedProcedure
 		.input(classCreateSchema)
 		.mutation(async ({ ctx, input }) => {
-			return ctx.prisma.class.create({
-				data: {
-					name: input.name,
-					classGroupId: input.classGroupId,
-					campusId: input.campusId,
-					buildingId: input.buildingId,
-					roomId: input.roomId,
-					capacity: input.capacity,
-					status: input.status,
-					teachers: {
-						createMany: {
-							data: [
-								...(input.classTutorId ? [{
-									teacherId: input.classTutorId,
-									isClassTeacher: true,
-									status: Status.ACTIVE,
-								}] : []),
-								...(input.teacherIds?.map(id => ({
-									teacherId: id,
-									isClassTeacher: false,
-									status: Status.ACTIVE,
-								})) || []),
-							],
-						},
-					},
+			// First get the teacher profiles
+			const teacherProfiles = await ctx.prisma.teacherProfile.findMany({
+				where: {
+					userId: {
+						in: [...(input.classTutorId ? [input.classTutorId] : []), ...(input.teacherIds || [])]
+					}
+				}
+			});
+
+			const data: Prisma.ClassCreateInput = {
+				name: input.name,
+				classGroup: { connect: { id: input.classGroupId } },
+				campus: { connect: { id: input.campusId } },
+				...(input.buildingId && { building: { connect: { id: input.buildingId } } }),
+				...(input.roomId && { room: { connect: { id: input.roomId } } }),
+				capacity: input.capacity,
+				status: input.status,
+				teachers: {
+					createMany: {
+						data: teacherProfiles.map(profile => ({
+							teacherId: profile.id,
+							isClassTeacher: profile.userId === input.classTutorId,
+							status: Status.ACTIVE,
+						}))
+					}
 				},
+			};
+
+			return ctx.prisma.class.create({
+				data,
+
 				include: {
 					classGroup: {
 						include: {

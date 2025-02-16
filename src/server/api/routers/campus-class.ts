@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { Status } from "@prisma/client";
+import { Status, Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { CampusUserService } from "../../services/CampusUserService";
-import { CampusPermission } from "../../../types/enums";
+import { CampusPermission } from "@/types/enums";
 
 export const campusClassRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -13,6 +13,7 @@ export const campusClassRouter = createTRPCRouter({
 			buildingId: z.string(),
 			roomId: z.string(),
 			capacity: z.number(),
+			classGroupId: z.string(), // Add required classGroupId
 			status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional().default(Status.ACTIVE),
 			teacherIds: z.array(z.string()),
 			classTutorId: z.string()
@@ -22,7 +23,7 @@ export const campusClassRouter = createTRPCRouter({
 			const hasPermission = await campusUserService.hasPermission(
 				ctx.session.user.id,
 				input.campusId,
-				CampusPermission.MANAGE_CAMPUS_CLASSES
+				CampusPermission.MANAGE_CLASSES
 			);
 
 			if (!hasPermission) {
@@ -32,26 +33,25 @@ export const campusClassRouter = createTRPCRouter({
 				});
 			}
 
+			const data: Prisma.ClassUncheckedCreateInput = {
+				name: input.name,
+				capacity: input.capacity,
+				status: input.status,
+				classGroupId: input.classGroupId,
+				buildingId: input.buildingId,
+				roomId: input.roomId,
+				teachers: {
+					create: input.teacherIds.map(teacherId => ({
+						teacherId,
+						isClassTeacher: teacherId === input.classTutorId,
+						status: Status.ACTIVE
+					}))
+				}
+			};
+
 			return ctx.prisma.class.create({
-				data: {
-					name: input.name,
-					capacity: input.capacity,
-					status: input.status,
-					campus: { connect: { id: input.campusId } },
-					building: { connect: { id: input.buildingId } },
-					room: { connect: { id: input.roomId } },
-					teachers: {
-						create: input.teacherIds.map(teacherId => ({
-							teacher: { connect: { id: teacherId } },
-							isClassTeacher: teacherId === input.classTutorId,
-							status: Status.ACTIVE
-						}))
-					}
-				},
+				data,
 				include: {
-					campus: true,
-					building: true,
-					room: true,
 					teachers: {
 						include: {
 							teacher: {
@@ -63,6 +63,7 @@ export const campusClassRouter = createTRPCRouter({
 					}
 				}
 			});
+
 		}),
 
 	getByCampus: protectedProcedure
@@ -86,12 +87,13 @@ export const campusClassRouter = createTRPCRouter({
 
 			return ctx.prisma.class.findMany({
 				where: {
-					campusId: input.campusId
+					classGroup: {
+						campus: {
+							id: input.campusId
+						}
+					}
 				},
 				include: {
-					campus: true,
-					building: true,
-					room: true,
 					teachers: {
 						include: {
 							teacher: {
@@ -107,6 +109,7 @@ export const campusClassRouter = createTRPCRouter({
 						}
 					}
 				}
+
 			});
 		})
 });

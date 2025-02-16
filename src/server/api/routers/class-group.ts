@@ -1,9 +1,21 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { Status } from "@prisma/client";
+import { Status, SubmissionStatus } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
-import { SubjectSyncService } from "../../services/SubjectSyncService";
 import { calendarSchema } from "@/schemas/calendar";
+import { JsonValue } from "@prisma/client/runtime/library";
+
+
+interface ActivitySubmission {
+	id: string;
+	content: JsonValue;
+	status: SubmissionStatus;
+	activityId: string;
+	studentId: string;
+	submittedAt: Date;
+	obtainedMarks?: number;
+	totalMarks?: number;
+}
 
 // Schema for logging subject changes
 
@@ -86,7 +98,7 @@ export const classGroupRouter = createTRPCRouter({
 				const classGroup = await tx.classGroup.create({
 					data: {
 						...classGroupData,
-						calendarId: calendar.inheritSettings ? program.calendar.id : calendar.id,
+						calendarId: calendar?.inheritSettings ? program.calendar.id : calendar?.id ?? program.calendar.id,
 						...(allSubjectIds.length > 0 && {
 							subjects: {
 								connect: allSubjectIds.map(id => ({ id })),
@@ -151,9 +163,9 @@ export const classGroupRouter = createTRPCRouter({
 		}))
 		.mutation(async ({ ctx, input }) => {
 			const { id, calendar, subjectIds, subjects, ...data } = input;
-			const subjectSyncService = new SubjectSyncService(ctx.prisma);
 
 			return ctx.prisma.$transaction(async (tx) => {
+
 				// Get current subjects for comparison
 				const currentClassGroup = await tx.classGroup.findUnique({
 					where: { id },
@@ -239,7 +251,7 @@ export const classGroupRouter = createTRPCRouter({
 			});
 		}),
 
-	getAllClassGroups: protectedProcedure
+	listClassGroups: protectedProcedure
 		.input(z.object({
 			programId: z.string().optional(),
 		}).optional())
@@ -613,8 +625,8 @@ export const classGroupRouter = createTRPCRouter({
 
 			const averagePerformance = activities.length > 0 
 				? activities.reduce((acc, activity) => {
-						const activityAvg = activity.submissions.reduce((sum, sub) => 
-							sum + ((sub.obtainedMarks ?? 0) / (sub.totalMarks ?? 1) * 100), 0) / 
+						const activityAvg = activity.submissions.reduce((sum, sub: ActivitySubmission) => 
+							sum + (((sub?.obtainedMarks ?? 0) / (sub?.totalMarks ?? 1)) * 100), 0) / 
 							(activity.submissions.length || 1);
 						return acc + activityAvg;
 					}, 0) / activities.length
@@ -784,8 +796,8 @@ export const classGroupRouter = createTRPCRouter({
 			// Calculate average scores by date
 			const performanceData = activities.map(activity => ({
 				date: activity.createdAt.toISOString().split('T')[0],
-				averageScore: activity.submissions.reduce((acc, sub) => 
-					acc + (((sub.obtainedMarks ?? 0) / (sub.totalMarks ?? 1)) * 100), 0) / 
+				averageScore: activity.submissions.reduce((acc, sub: ActivitySubmission) => 
+					acc + (((sub?.obtainedMarks ?? 0) / (sub?.totalMarks ?? 1)) * 100), 0) / 
 					(activity.submissions.length || 1)
 			}));
 
@@ -800,8 +812,8 @@ export const classGroupRouter = createTRPCRouter({
 					};
 				}
 				
-				const avgScore = activity.submissions.reduce((sum, sub) => 
-					sum + (((sub.obtainedMarks ?? 0) / (sub.totalMarks ?? 1)) * 100), 0) / 
+				const avgScore = activity.submissions.reduce((sum, sub: ActivitySubmission) => 
+					sum + (((sub?.obtainedMarks ?? 0) / (sub?.totalMarks ?? 1)) * 100), 0) / 
 					(activity.submissions.length || 1);
 				
 				acc[subjectName].totalScore += avgScore;
