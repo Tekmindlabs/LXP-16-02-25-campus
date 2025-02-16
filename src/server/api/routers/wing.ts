@@ -1,16 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { wingSchema, wingIdSchema, updateWingSchema } from "../validation/wing";
+import { wingSchema, wingIdSchema, updateWingSchema } from "@/types/validation/wing";
 import { TRPCError } from "@trpc/server";
+import { CampusService } from "../../services/campus.service";
 
 export const wingRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(wingSchema)
 		.mutation(async ({ ctx, input }) => {
-			const wing = await ctx.prisma.wing.create({
-				data: input,
-			});
-			return wing;
+			const campusService = new CampusService(ctx.prisma);
+			return campusService.createWing(input);
 		}),
 
 	getAll: protectedProcedure
@@ -21,11 +20,11 @@ export const wingRouter = createTRPCRouter({
 				where,
 				include: {
 					floor: true,
-					rooms: true,
+					rooms: true
 				},
 				orderBy: {
-					name: 'asc',
-				},
+					name: 'asc'
+				}
 			});
 		}),
 
@@ -36,14 +35,14 @@ export const wingRouter = createTRPCRouter({
 				where: { id: input.id },
 				include: {
 					floor: true,
-					rooms: true,
-				},
+					rooms: true
+				}
 			});
 
 			if (!wing) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
-					message: "Wing not found",
+					message: "Wing not found"
 				});
 			}
 
@@ -53,12 +52,15 @@ export const wingRouter = createTRPCRouter({
 	update: protectedProcedure
 		.input(z.object({
 			id: z.string(),
-			data: updateWingSchema,
+			data: updateWingSchema
 		}))
 		.mutation(async ({ ctx, input }) => {
 			const wing = await ctx.prisma.wing.update({
 				where: { id: input.id },
 				data: input.data,
+				include: {
+					rooms: true
+				}
 			});
 			return wing;
 		}),
@@ -67,8 +69,8 @@ export const wingRouter = createTRPCRouter({
 		.input(wingIdSchema)
 		.mutation(async ({ ctx, input }) => {
 			await ctx.prisma.wing.delete({
-				where: { id: input.id },
+				where: { id: input.id }
 			});
 			return { success: true };
-		}),
+		})
 });

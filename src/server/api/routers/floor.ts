@@ -1,16 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { floorSchema, floorIdSchema, updateFloorSchema } from "../validation/floor";
+import { floorSchema, floorIdSchema, updateFloorSchema } from "@/types/validation/floor";
 import { TRPCError } from "@trpc/server";
+import { CampusService } from "../../services/campus.service";
 
 export const floorRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(floorSchema)
 		.mutation(async ({ ctx, input }) => {
-			const floor = await ctx.prisma.floor.create({
-				data: input,
-			});
-			return floor;
+			const campusService = new CampusService(ctx.prisma);
+			return campusService.createFloor(input);
 		}),
 
 	getAll: protectedProcedure
@@ -21,11 +20,15 @@ export const floorRouter = createTRPCRouter({
 				where,
 				include: {
 					building: true,
-					wings: true,
+					wings: {
+						include: {
+							rooms: true
+						}
+					}
 				},
 				orderBy: {
-					number: 'asc',
-				},
+					number: 'asc'
+				}
 			});
 		}),
 
@@ -36,14 +39,18 @@ export const floorRouter = createTRPCRouter({
 				where: { id: input.id },
 				include: {
 					building: true,
-					wings: true,
-				},
+					wings: {
+						include: {
+							rooms: true
+						}
+					}
+				}
 			});
 
 			if (!floor) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
-					message: "Floor not found",
+					message: "Floor not found"
 				});
 			}
 
@@ -53,12 +60,19 @@ export const floorRouter = createTRPCRouter({
 	update: protectedProcedure
 		.input(z.object({
 			id: z.string(),
-			data: updateFloorSchema,
+			data: updateFloorSchema
 		}))
 		.mutation(async ({ ctx, input }) => {
 			const floor = await ctx.prisma.floor.update({
 				where: { id: input.id },
 				data: input.data,
+				include: {
+					wings: {
+						include: {
+							rooms: true
+						}
+					}
+				}
 			});
 			return floor;
 		}),
@@ -67,8 +81,8 @@ export const floorRouter = createTRPCRouter({
 		.input(floorIdSchema)
 		.mutation(async ({ ctx, input }) => {
 			await ctx.prisma.floor.delete({
-				where: { id: input.id },
+				where: { id: input.id }
 			});
 			return { success: true };
-		}),
+		})
 });

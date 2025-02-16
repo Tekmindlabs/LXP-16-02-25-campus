@@ -1545,6 +1545,40 @@ model SystemSettings {
   @@map("system_settings")
 }
 
+model PerformanceMetrics {
+  id           String   @id @default(cuid())
+  campusId     String
+  responseTime Float
+  memoryUsage  Float
+  cpuUsage     Float
+  activeUsers  Int
+  timestamp    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([campusId])
+  @@index([timestamp])
+  @@map("performance_metrics")
+}
+
+model EndpointMetrics {
+  id                 String   @id @default(cuid())
+  campusId           String
+  path               String
+  method             String
+  totalRequests      Int
+  averageResponseTime Float
+  errorRate          Float
+  lastUpdated        DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([campusId, path, method])
+  @@index([campusId])
+  @@index([path])
+  @@map("endpoint_metrics")
+}
+
 model InstituteSettings {
   id                Int      @id @default(1)
   name              String

@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { roomSchema, roomIdSchema, updateRoomSchema } from "../validation/room";
+import { roomSchema, roomIdSchema, updateRoomSchema } from "@/types/validation/room";
 import { TRPCError } from "@trpc/server";
-import { RoomStatus, RoomType, Prisma } from "@prisma/client";
+import { RoomStatus, RoomType } from "@/types/enums";
 import { RoomSchedulingService } from "../../services/RoomSchedulingService";
 import { RoomResourceService } from "../../services/RoomResourceService";
 import { RoomReportingService } from "../../services/RoomReportingService";
 import { RoomCache } from "@/lib/cache/RoomCache";
+import { CampusService } from "../../services/campus.service";
+import { DateTime } from "luxon";
 
 const roomCache = new RoomCache();
 const schedulingService = new RoomSchedulingService();
@@ -17,9 +19,8 @@ export const roomRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(roomSchema)
 		.mutation(async ({ ctx, input }) => {
-			const room = await ctx.prisma.room.create({
-				data: input,
-			});
+			const campusService = new CampusService(ctx.prisma);
+			const room = await campusService.createRoom(input);
 			await roomCache.set(room.id, room);
 			return room;
 		}),
@@ -31,11 +32,15 @@ export const roomRouter = createTRPCRouter({
 			status: z.nativeEnum(RoomStatus).optional(),
 		}))
 		.query(async ({ ctx, input }) => {
-			const where = {
-				...(input.wingId && { wingId: input.wingId }),
-				...(input.type && { type: input.type }),
-				...(input.status && { status: input.status }),
-			};
+			const where: {
+				wingId?: string;
+				type?: RoomType;
+				status?: RoomStatus;
+			} = {};
+			
+			if (input.wingId) where.wingId = input.wingId;
+			if (input.type) where.type = input.type;
+			if (input.status) where.status = input.status;
 			
 			const rooms = await ctx.prisma.room.findMany({
 				where,
@@ -163,14 +168,11 @@ export const roomRouter = createTRPCRouter({
 			dayOfWeek: z.number().min(1).max(7),
 		}))
 		.query(async ({ input }) => {
-			// Convert JavaScript Date to Prisma DateTime
-			const startDateTime = new Date(input.startTime);
-			const endDateTime = new Date(input.endTime);
-			
 			return schedulingService.checkRoomAvailability(
 				input.roomId,
-				startDateTime,
-				endDateTime,
+				DateTime.fromJSDate(input.startTime),
+				DateTime.fromJSDate(input.endTime),
+
 				input.dayOfWeek
 			);
 		}),

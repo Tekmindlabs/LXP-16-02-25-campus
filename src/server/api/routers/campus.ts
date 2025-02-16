@@ -1,126 +1,157 @@
 import { z } from "zod";
-import { createTRPCRouter, permissionProtectedProcedure } from "../trpc";
-import { Permissions } from "@/utils/permissions";
-
-type BaseCampusType = z.infer<typeof baseCampusSchema>;
-
-const baseCampusSchema = z.object({
-	name: z.string().min(1),
-	code: z.string().regex(/^[A-Z0-9-]+$/),
-	establishmentDate: z.string(),
-	type: z.enum(["MAIN", "BRANCH"]),
-	status: z.enum(["ACTIVE", "INACTIVE"]),
-	streetAddress: z.string().min(1),
-	city: z.string().min(1),
-	state: z.string().min(1),
-	country: z.string().min(1),
-	postalCode: z.string().regex(/^[A-Z0-9-\s]+$/),
-	gpsCoordinates: z.string().optional(),
-	primaryPhone: z.string().regex(/^\+?[1-9]\d{1,14}$/),
-	secondaryPhone: z.string().optional(),
-	email: z.string().email(),
-	emergencyContact: z.string().regex(/^\+?[1-9]\d{1,14}$/),
-});
-
-const campusSchema = baseCampusSchema.transform((data) => ({
-	...data,
-	establishmentDate: new Date(data.establishmentDate),
-}));
-
-const updateCampusSchema = z.object({
-	id: z.string(),
-	...Object.fromEntries(
-		Object.entries(baseCampusSchema.shape).map(([key, value]) => [
-			key,
-			(value as z.ZodTypeAny).optional(),
-		])
-	),
-}) satisfies z.ZodType<{ id: string } & Partial<BaseCampusType>>;
+import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { campusSchema } from "@/types/validation/campus";
+import { CampusService } from "../../services/campus.service";
+import { CampusUserService } from "../../services/CampusUserService";
+import { Status, CampusType, CampusPermission } from "@/types/enums";
+import { TRPCError } from "@trpc/server";
 
 export const campusRouter = createTRPCRouter({
-	create: permissionProtectedProcedure(Permissions.CAMPUS_MANAGE)
+	create: protectedProcedure
 		.input(campusSchema)
 		.mutation(async ({ ctx, input }) => {
+
+
+			const campusService = new CampusService(ctx.prisma);
 			const existingCampus = await ctx.prisma.campus.findUnique({
 				where: { code: input.code },
 			});
 
 			if (existingCampus) {
-				throw new Error("Campus code must be unique");
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Campus code must be unique"
+				});
 			}
 
-			return ctx.prisma.campus.create({
-				data: input,
-			});
+			return campusService.createCampus(input);
 		}),
 
-	getAll: permissionProtectedProcedure(Permissions.CAMPUS_VIEW)
-		.query(({ ctx }) => {
-			return ctx.prisma.campus.findMany({
-				orderBy: { name: 'asc' },
-			});
+	getAll: protectedProcedure
+		.query(async ({ ctx }) => {
+			const campusService = new CampusService(ctx.prisma);
+			return campusService.listCampuses();
 		}),
 
-	getById: permissionProtectedProcedure(Permissions.CAMPUS_VIEW)
+	getById: protectedProcedure
 		.input(z.string())
-		.query(({ ctx, input }) => {
-			return ctx.prisma.campus.findUnique({
-				where: { id: input },
-			});
+		.query(async ({ ctx, input }) => {
+			const campusUserService = new CampusUserService(ctx.prisma);
+			const hasPermission = await campusUserService.hasPermission(
+				ctx.session.user.id,
+				input,
+				CampusPermission.VIEW_CAMPUS
+			);
+
+			if (!hasPermission) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Insufficient permissions"
+				});
+			}
+
+			const campusService = new CampusService(ctx.prisma);
+			return campusService.getCampus(input);
 		}),
 
-	update: permissionProtectedProcedure(Permissions.CAMPUS_MANAGE)
-		.input(updateCampusSchema)
+	update: protectedProcedure
+		.input(z.object({
+			id: z.string(),
+			data: campusSchema.partial()
+		}))
 		.mutation(async ({ ctx, input }) => {
-			const { id, ...inputData } = input as { id: string } & Partial<BaseCampusType>;
-			const data = {
-				...inputData,
-				...(inputData.establishmentDate && {
-					establishmentDate: new Date(inputData.establishmentDate),
-				}),
-			};
+			const campusUserService = new CampusUserService(ctx.prisma);
+			const hasPermission = await campusUserService.hasPermission(
+				ctx.session.user.id,
+				input.id,
+				CampusPermission.MANAGE_CAMPUS
+			);
 
-			if (data.code) {
+			if (!hasPermission) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Insufficient permissions"
+				});
+			}
+
+			const campusService = new CampusService(ctx.prisma);
+			
+			if (input.data.code) {
 				const existingCampus = await ctx.prisma.campus.findFirst({
 					where: {
-						code: data.code,
-						NOT: { id },
+						code: input.data.code,
+						NOT: { id: input.id },
 					},
 				});
 
 				if (existingCampus) {
-					throw new Error("Campus code must be unique");
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "Campus code must be unique"
+					});
 				}
 			}
 
-			return ctx.prisma.campus.update({
-				where: { id },
-				data,
-			});
+			return campusService.updateCampus(input.id, input.data);
 		}),
 
-	delete: permissionProtectedProcedure(Permissions.CAMPUS_DELETE)
+	delete: protectedProcedure
 		.input(z.string())
-		.mutation(({ ctx, input }) => {
-			return ctx.prisma.campus.delete({
-				where: { id: input },
-			});
+		.mutation(async ({ ctx, input }) => {
+			const campusUserService = new CampusUserService(ctx.prisma);
+			const hasPermission = await campusUserService.hasPermission(
+				ctx.session.user.id,
+				input,
+				CampusPermission.MANAGE_CAMPUS
+			);
+
+			if (!hasPermission) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Insufficient permissions"
+				});
+			}
+
+			const campusService = new CampusService(ctx.prisma);
+			await campusService.deleteCampus(input);
+			return { success: true };
 		}),
 
-	list: permissionProtectedProcedure(Permissions.CAMPUS_VIEW)
-		.input(
-			z.object({
-				status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
-				type: z.enum(["MAIN", "BRANCH"]).optional(),
-			}).optional()
-		)
-		.query(({ ctx, input }) => {
+	list: protectedProcedure
+		.input(z.object({
+			status: z.nativeEnum(Status).optional(),
+			type: z.nativeEnum(CampusType).optional(),
+		}).optional())
+		.query(async ({ ctx, input }) => {
+			const campusUserService = new CampusUserService(ctx.prisma);
+			const hasPermission = await campusUserService.hasPermission(
+				ctx.session.user.id,
+				"", // For list endpoint, we don't need a specific campus ID
+				CampusPermission.VIEW_CAMPUS
+			);
+
+			if (!hasPermission) {
+				throw new TRPCError({
+					code: "FORBIDDEN",
+					message: "Insufficient permissions"
+				});
+			}
+
+			const where: {
+				status?: Status;
+				type?: CampusType;
+			} = {};
+
+			if (input?.status) where.status = input.status;
+			if (input?.type) where.type = input.type;
+
 			return ctx.prisma.campus.findMany({
-				where: {
-					...(input?.status && { status: input.status }),
-					...(input?.type && { type: input.type }),
-				},
+				where,
 				orderBy: { name: 'asc' },
+				include: {
+					buildings: true
+				}
 			});
 		}),
 });
+

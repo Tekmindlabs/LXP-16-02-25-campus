@@ -1,3 +1,5 @@
+import { User } from "./user";
+
 export enum TeacherType {
 	CLASS = 'CLASS',
 	SUBJECT = 'SUBJECT'
@@ -6,6 +8,7 @@ export enum TeacherType {
 export interface TeacherProfile {
 	id: string;
 	userId: string;
+	user: User;
 	teacherType: TeacherType;
 	specialization: string | null;
 	availability: string | null;

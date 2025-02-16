@@ -1,16 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { buildingSchema, buildingIdSchema, updateBuildingSchema } from "../validation/building";
+import { buildingSchema, buildingIdSchema, updateBuildingSchema } from "@/types/validation/building";
 import { TRPCError } from "@trpc/server";
+import { CampusService } from "../../services/campus.service";
 
 export const buildingRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(buildingSchema)
 		.mutation(async ({ ctx, input }) => {
-			const building = await ctx.prisma.building.create({
-				data: input,
-			});
-			return building;
+			const campusService = new CampusService(ctx.prisma);
+			return campusService.createBuilding(input);
 		}),
 
 	getAll: protectedProcedure
@@ -21,8 +20,16 @@ export const buildingRouter = createTRPCRouter({
 				where,
 				include: {
 					campus: true,
-					floors: true,
-				},
+					floors: {
+						include: {
+							wings: {
+								include: {
+									rooms: true
+								}
+							}
+						}
+					}
+				}
 			});
 		}),
 
@@ -33,14 +40,22 @@ export const buildingRouter = createTRPCRouter({
 				where: { id: input.id },
 				include: {
 					campus: true,
-					floors: true,
-				},
+					floors: {
+						include: {
+							wings: {
+								include: {
+									rooms: true
+								}
+							}
+						}
+					}
+				}
 			});
 
 			if (!building) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
-					message: "Building not found",
+					message: "Building not found"
 				});
 			}
 
@@ -50,12 +65,23 @@ export const buildingRouter = createTRPCRouter({
 	update: protectedProcedure
 		.input(z.object({
 			id: z.string(),
-			data: updateBuildingSchema,
+			data: updateBuildingSchema
 		}))
 		.mutation(async ({ ctx, input }) => {
 			const building = await ctx.prisma.building.update({
 				where: { id: input.id },
 				data: input.data,
+				include: {
+					floors: {
+						include: {
+							wings: {
+								include: {
+									rooms: true
+								}
+							}
+						}
+					}
+				}
 			});
 			return building;
 		}),
@@ -64,8 +90,8 @@ export const buildingRouter = createTRPCRouter({
 		.input(buildingIdSchema)
 		.mutation(async ({ ctx, input }) => {
 			await ctx.prisma.building.delete({
-				where: { id: input.id },
+				where: { id: input.id }
 			});
 			return { success: true };
-		}),
+		})
 });

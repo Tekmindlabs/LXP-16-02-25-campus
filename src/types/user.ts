@@ -1,73 +1,33 @@
-import { Status, AttendanceStatus } from "@prisma/client";
+import { UserType, Status, AttendanceStatus, CampusRole } from "./enums";
+import { Campus } from "./campus";
 
-export enum TeacherType {
-	CLASS = "CLASS",
-	SUBJECT = "SUBJECT"
-}
-
-export interface Student {
+export interface User {
 	id: string;
-	name: string | null;
-	email: string | null;
+	name?: string | null;
+	email?: string | null;
+	phoneNumber?: string | null;
+	emailVerified?: Date | null;
+	image?: string | null;
+	password?: string | null;
 	status: Status;
-	studentProfile: {
-		dateOfBirth: Date | null;
-		class?: {
-			id: string;
-			name: string;
-			classGroup: {
-				id: string;
-				name: string;
-				program: {
-					id: string;
-					name: string | null;
-				};
-			};
-		} | null;
-		parent?: {
-			user: {
-				name: string | null;
-			};
-		} | null;
-		attendance: {
-			status: AttendanceStatus;
-		}[];
-		activities: {
-			status: string;
-			grade: number | null;
-		}[];
-	};
+	userType?: UserType | null;
+
+	// Campus Relations
+	campusRoles?: CampusRole[];
+	primaryCampus?: Campus;
+	primaryCampusId?: string;
+
+	createdAt: Date;
+	updatedAt: Date;
+	deleted?: Date | null;
+	dataRetentionDate?: Date | null;
+	dateOfBirth?: Date | null;
 }
 
-
-export interface Teacher {
+export interface UserAttendance {
 	id: string;
-	name: string | null;
-	email: string | null;
-	phoneNumber: string | null;
-	status: Status;
-	teacherProfile: {
-		teacherType: TeacherType;
-		specialization: string | null;
-		availability: string | null;
-		permissions: string[];
-		subjects: {
-			subject: {
-				id: string;
-				name: string;
-			};
-			status: Status;
-		}[];
-		classes: {
-			class: {
-				id: string;
-				name: string;
-				classGroup: {
-					name: string;
-				};
-			};
-			status: Status;
-			isClassTeacher: boolean;
-		}[];
-	} | null;
+	date: Date;
+	status: AttendanceStatus;
+	notes?: string;
 }
+
