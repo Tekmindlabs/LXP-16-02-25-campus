@@ -11,8 +11,8 @@ export const campusReportingRouter = createTRPCRouter({
 			endDate: z.date()
 		}))
 		.query(async ({ ctx, input }) => {
-			const campusUserService = new CampusUserService(ctx.prisma);
-			const reportingService = new CampusReportingService(ctx.prisma, campusUserService);
+			const userService = new CampusUserService(ctx.prisma);
+			const reportingService = new CampusReportingService(ctx.prisma, userService);
 
 			return reportingService.getAttendanceStats(
 				ctx.session.user.id,
