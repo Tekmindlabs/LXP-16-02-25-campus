@@ -10,13 +10,14 @@ import { api } from "@/trpc/react";
 import { ClassList } from "./ClassList";
 import { ClassForm } from "./ClassForm";
 import { Class } from "@/types/class";
-import { LuUsers, LuBookOpen, LuGraduationCap, LuUserCheck } from "react-icons/lu";
+import { LuUsers, LuBookOpen, LuGraduationCap, LuUserCheck, LuBuilding } from "react-icons/lu";
 
 interface SearchFilters {
     search: string;
     classGroupId?: string;
     teacherId?: string;
     status?: Status;
+    campusId?: string;
 }
 
 export const ClassManagement = () => {
@@ -29,6 +30,7 @@ export const ClassManagement = () => {
     const { data: classesData, isLoading: classesLoading } = api.class.searchClasses.useQuery(filters);
     const { data: classGroupsData, isLoading: groupsLoading } = api.classGroup.getAllClassGroups.useQuery();
     const { data: teachersData, isLoading: teachersLoading } = api.subject.getAvailableTeachers.useQuery();
+    const { data: campusesData, isLoading: campusesLoading } = api.campus.getAll.useQuery();
 
     // Transform the data to match the Class interface
     const classes: Class[] = classesData?.map(c => ({
@@ -95,7 +97,7 @@ export const ClassManagement = () => {
         setSelectedClassId(null);
     };
 
-    if (classesLoading || groupsLoading || teachersLoading) {
+    if (classesLoading || groupsLoading || teachersLoading || campusesLoading) {
         return <div>Loading...</div>;
     }
 
@@ -165,6 +167,19 @@ export const ClassManagement = () => {
                         </p>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Campuses</CardTitle>
+                        <LuBuilding className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{campusesData?.length || 0}</div>
+                        <p className="text-xs text-muted-foreground">
+                            With active classes
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
 
             <Card>
@@ -225,6 +240,22 @@ export const ClassManagement = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <Select
+                                value={filters.campusId || "ALL"}
+                                onValueChange={(value) => setFilters({ ...filters, campusId: value === "ALL" ? undefined : value })}
+                            >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Filter by Campus" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All Campuses</SelectItem>
+                                    {campusesData?.map((campus) => (
+                                        <SelectItem key={campus.id} value={campus.id}>
+                                            {campus.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -243,6 +274,7 @@ export const ClassManagement = () => {
                 selectedClass={classes.find(c => c.id === selectedClassId)}
                 classGroups={classGroupsData || []}
                 teachers={teachers}
+                campuses={campusesData || []}
             />
         </div>
     );

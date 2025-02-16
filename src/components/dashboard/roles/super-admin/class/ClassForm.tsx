@@ -20,6 +20,9 @@ import { api } from "@/utils/api";
 const formSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	classGroupId: z.string().min(1, "Class Group is required"),
+	campusId: z.string().min(1, "Campus is required"),
+	buildingId: z.string().optional(),
+	roomId: z.string().optional(),
 	capacity: z.number().min(1, "Capacity must be at least 1"),
 	status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
 	classTutorId: z.string().optional(),
@@ -40,6 +43,9 @@ interface ClassFormProps {
 		capacity: number;
 		status: Status;
 		classTutorId?: string;
+		campusId?: string;
+		buildingId?: string;
+		roomId?: string;
 		classGroup: {
 			id: string;
 			program: {
@@ -62,10 +68,33 @@ interface ClassFormProps {
 	};
 	classGroups: { id: string; name: string }[];
 	teachers: { id: string; user: { name: string } }[];
+	campuses: {
+		id: string;
+		name: string;
+		buildings?: {
+			id: string;
+			name: string;
+			rooms?: {
+				id: string;
+				number: string;
+				capacity: number;
+			}[];
+		}[];
+	}[];
 }
 
-export const ClassForm = ({ isOpen, onClose, selectedClass, classGroups, teachers }: ClassFormProps) => {
+export const ClassForm = ({ isOpen, onClose, selectedClass, classGroups, teachers, campuses }: ClassFormProps) => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [selectedCampusId, setSelectedCampusId] = useState<string>(selectedClass?.campusId || "");
+	const [selectedBuildingId, setSelectedBuildingId] = useState<string>(selectedClass?.buildingId || "");
+
+	const buildings = selectedCampusId 
+		? campuses.find(c => c.id === selectedCampusId)?.buildings || []
+		: [];
+
+	const rooms = selectedBuildingId
+		? buildings.find(b => b.id === selectedBuildingId)?.rooms || []
+		: [];
 	const { toast } = useToast();
 	const utils = api.useUtils();
 
@@ -74,6 +103,9 @@ export const ClassForm = ({ isOpen, onClose, selectedClass, classGroups, teacher
 		defaultValues: {
 			name: selectedClass?.name || "",
 			classGroupId: selectedClass?.classGroup.id || "",
+			campusId: selectedClass?.campusId || "",
+			buildingId: selectedClass?.buildingId || "",
+			roomId: selectedClass?.roomId || "",
 			capacity: selectedClass?.capacity || 30,
 			status: selectedClass?.status || Status.ACTIVE,
 			teacherIds: selectedClass?.teachers.map(t => t.teacher.id) || [],
@@ -166,6 +198,103 @@ export const ClassForm = ({ isOpen, onClose, selectedClass, classGroups, teacher
 				/>
 
 				<div className="grid grid-cols-2 gap-4">
+				  <FormField
+					control={form.control}
+					name="campusId"
+					render={({ field }) => (
+					  <FormItem>
+						<FormLabel>Campus</FormLabel>
+						<Select 
+						  onValueChange={(value) => {
+							field.onChange(value);
+							setSelectedCampusId(value);
+							form.setValue("buildingId", "");
+							form.setValue("roomId", "");
+						  }} 
+						  value={field.value}
+						>
+						  <FormControl>
+							<SelectTrigger>
+							  <SelectValue placeholder="Select campus" />
+							</SelectTrigger>
+						  </FormControl>
+						  <SelectContent>
+							{campuses.map((campus) => (
+							  <SelectItem key={campus.id} value={campus.id}>
+								{campus.name}
+							  </SelectItem>
+							))}
+						  </SelectContent>
+						</Select>
+						<FormMessage />
+					  </FormItem>
+					)}
+				  />
+
+				  <FormField
+					control={form.control}
+					name="buildingId"
+					render={({ field }) => (
+					  <FormItem>
+						<FormLabel>Building</FormLabel>
+						<Select 
+						  onValueChange={(value) => {
+							field.onChange(value);
+							setSelectedBuildingId(value);
+							form.setValue("roomId", "");
+						  }} 
+						  value={field.value}
+						  disabled={!selectedCampusId}
+						>
+						  <FormControl>
+							<SelectTrigger>
+							  <SelectValue placeholder="Select building" />
+							</SelectTrigger>
+						  </FormControl>
+						  <SelectContent>
+							{buildings.map((building) => (
+							  <SelectItem key={building.id} value={building.id}>
+								{building.name}
+							  </SelectItem>
+							))}
+						  </SelectContent>
+						</Select>
+						<FormMessage />
+					  </FormItem>
+					)}
+				  />
+				</div>
+
+				<div className="grid grid-cols-2 gap-4">
+				  <FormField
+					control={form.control}
+					name="roomId"
+					render={({ field }) => (
+					  <FormItem>
+						<FormLabel>Room</FormLabel>
+						<Select 
+						  onValueChange={field.onChange} 
+						  value={field.value}
+						  disabled={!selectedBuildingId}
+						>
+						  <FormControl>
+							<SelectTrigger>
+							  <SelectValue placeholder="Select room" />
+							</SelectTrigger>
+						  </FormControl>
+						  <SelectContent>
+							{rooms.map((room) => (
+							  <SelectItem key={room.id} value={room.id}>
+								{room.number} (Capacity: {room.capacity})
+							  </SelectItem>
+							))}
+						  </SelectContent>
+						</Select>
+						<FormMessage />
+					  </FormItem>
+					)}
+				  />
+
 				  <FormField
 					control={form.control}
 					name="classGroupId"
