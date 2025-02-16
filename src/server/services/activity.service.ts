@@ -44,6 +44,10 @@ export class ActivityService {
 	}
 
 	private async createCurriculumInheritance(activityId: string, subjectId: string) {
+		interface ClassWithId {
+			id: string;
+		}
+
 		// Get all classes with this subject
 		const classes = await this.db.class.findMany({
 			where: { 
@@ -55,7 +59,7 @@ export class ActivityService {
 
 		// Create inheritance records
 		await this.db.activityInheritance.createMany({
-			data: classes.map(cls => ({
+			data: classes.map((cls: ClassWithId) => ({
 				activityId,
 				classId: cls.id,
 				inherited: true

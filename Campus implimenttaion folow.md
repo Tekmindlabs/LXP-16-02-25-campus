@@ -1,217 +1,180 @@
-Let me explain the system architecture in simple terms, like explaining how a school system would work:
+Based on the provided codebase and the existing implementation, I'll outline a comprehensive flow for the campus entity integration:
 
-Think of it like a big school organization (Institute) that has multiple school buildings (Campuses) in different locations.
-
-Here's how the new system would work:
-
-1. At the TOP LEVEL (Institute):
+1. Core Entity Structure
 ```mermaid
 graph TD
-    A[Institute] --> B[Central Student Database]
-    A --> C[Central Teacher Database]
-    A --> D[Central Gradebook System]
-    A --> E[Central Attendance System]
-    A --> F[Programs]
-    F --> G[Class Groups]
-    G --> H[Subjects/Curriculum]
-    G --> I[Messegine System]
-    G --> J[Notifications]
-
+    A[Institute] --> B[Campus]
+    B --> C[Campus Classes]
+    B --> D[Campus Students]
+    B --> E[Campus Teachers]
+    B --> F[Campus Attendance]
+    B --> G[Campus Grades]
+    B --> H[Campus Buildings]
 ```
 
-2. Then at each SCHOOL BUILDING (Campus):
+2. Data Flow Integration with Existing Types
+```typescript
+// Extending existing types
+interface Campus {
+  id: string;
+  name: string;
+  code: string;
+  status: Status;
+  // Location and contact details
+  buildings: CampusBuilding[];
+  classes: CampusClass[];
+  teachers: CampusTeacher[];
+  students: CampusStudent[];
+}
+
+interface CampusClass extends Class {
+  campusId: string;
+  campus: Campus;
+  // Inherits existing Class properties
+  gradeBook: GradeBookRecord;
+  students: Student[];
+  teachers: Teacher[];
+}
+```
+
+3. Gradebook Integration
 ```mermaid
 graph TD
-    I[Campus] --> J[Campus Students]
-    I --> K[Campus Teachers]
-    I --> L[Campus Classes]
-    I --> M[Campus Gradebooks]
-    I --> N[Campus Attendance]
-        I --> O[CampusClassrooms]
-            I --> P[Campus Timetable]
-                Q --> N[Campus Notifications]
-                R[Campus Notifications]
+    A[Campus GradeBook] --> B[Class GradeBook]
+    B --> C[Subject Records]
+    C --> D[Term Grades]
+    D --> E[Assessment Period Grades]
+    E --> F[Central Sync]
 ```
 
+4. Attendance System Integration
+```typescript
+interface CampusAttendance {
+  campusId: string;
+  classId: string;
+  date: Date;
+  records: {
+    studentId: string;
+    status: AttendanceStatus;
+    subjectId?: string;
+  }[];
+}
+```
 
-    User Experience Portals:
-
-mermaid
-
-graph TD
-
-    A[Personalized Portals] --> B[Teacher Portal]
-
-    A --> C[Student Portal]
-
-    A --> D[Parent Portal]
-
-    A --> E[Admin Portal]
-
-    A --> F[Program Coordinator Portal]
-
-3. How they CONNECT:
-
-
-
-
-
-
-Communication System
-
-    Internal messaging
-    Parent-teacher communication
-    Announcement broadcasts
-
-Notifications System
-
-
-
-Real-world example:
-1. When a new student joins:
-- They're first added to the Institute's central database
-- Then they're linked to their specific campus
-- Any updates (like grades or attendance) sync between campus and institute levels
-
-Think of it like a bank with multiple branches:
-- Your account exists at the main bank (Institute level)
-- You can access it from any branch (Campus level)
-- All transactions are recorded centrally but can be viewed at branch level
-
-Benefits:
-1. One source of truth (central database)
-2. Easy to transfer students between campuses
-3. Unified reporting at institute level
-4. Campus-specific management still possible
-5. Real-time data sync between levels
-
-This way:
-- The institute has a complete view of all students, teachers, grades, and attendance
-- Each campus can manage their day-to-day operations
-- Data flows smoothly between both levels
-- Reports can be generated for either the whole institute or specific campuses
-
-
-
-Let me explain the complete system architecture in a simple way, including how subjects, curriculum, and activities flow from top to bottom:
-
-1. INSTITUTE LEVEL (The Main Office)
+5. Teacher Assignment Flow
 ```mermaid
 graph TD
-    A[Institute] --> B[Programs]
-    B --> C[Class Groups]
-    C --> D[Subjects]
-    D --> E[Curriculum]
-    E --> F[Resources]
-    E --> G[Activities Templates]
+    A[Campus Teacher] --> B[Subject Assignment]
+    A --> C[Class Assignment]
+    B --> D[Subject Attendance]
+    C --> E[Class Management]
+    E --> F[Grade Management]
 ```
 
-Think of this like a school's head office that:
-- Creates programs (like Primary, Secondary)
-- Defines class groups (like Grade 1, Grade 2)
-- Sets up subjects (Math, Science)
-- Creates curriculum (chapters, topics)
-- Provides learning resources (books, videos)
-- Creates activity templates (quiz types, assignment formats)
-
-2. CAMPUS LEVEL (Individual School Buildings)
+6. Student Management Flow
 ```mermaid
 graph TD
-    A[Campus] --> B[Classes]
-    B --> C[Inherited Subjects]
-    C --> D[Inherited Curriculum]
-    D --> E[Teacher Activities]
-    E --> F[Class Activities]
-    F --> G[Student Submissions]
-    G --> H[Grades]
+    A[Central Student] --> B[Campus Enrollment]
+    B --> C[Class Assignment]
+    C --> D[Attendance Tracking]
+    C --> E[Grade Recording]
+    E --> F[Central Sync]
 ```
 
-Each campus:
-- Creates actual classes (like Grade 1-A, Grade 1-B)
-- Gets subjects from institute level
-- Gets curriculum from institute level
-- Lets teachers create activities
-- Manages student work and grades
+7. Campus Operations Integration
+```typescript
+class CampusOperationsService {
+  // Attendance Management
+  async recordAttendance(data: CampusAttendance) {
+    // Record attendance locally
+    // Sync with central database
+  }
 
-3. TEACHER'S WORKFLOW
+  // Grade Management
+  async updateGrades(classId: string, gradeData: GradeBookRecord) {
+    // Update local grades
+    // Sync with central gradebook
+  }
+
+  // Class Management
+  async createCampusClass(data: CreateCampusClassInput) {
+    // Create class with campus association
+    // Initialize gradebook
+    // Setup attendance tracking
+  }
+}
+```
+
+8. Access Control Implementation
+```typescript
+enum CampusPermissions {
+  CAMPUS_ADMIN = 'CAMPUS_ADMIN',
+  CAMPUS_TEACHER = 'CAMPUS_TEACHER',
+  CAMPUS_COORDINATOR = 'CAMPUS_COORDINATOR'
+}
+
+interface CampusRole {
+  campusId: string;
+  userId: string;
+  permissions: CampusPermissions[];
+}
+```
+
+9. Data Synchronization Flow
 ```mermaid
-graph TD
-    A[Teacher Assigned to Class] --> B[Views Subjects]
-    B --> C[Access Curriculum]
-    C --> D[Create Class Activities]
-    D --> E[Grade Student Work]
+sequenceDiagram
+    participant C as Campus
+    participant L as Local DB
+    participant S as Sync Service
+    participant I as Institute DB
+    
+    C->>L: Record Operation
+    L->>S: Queue Sync
+    S->>I: Sync Data
+    I->>S: Confirm Sync
+    S->>L: Update Status
 ```
 
-For example:
-1. Math teacher of Grade 1-A:
-   - Sees Math curriculum from institute
-   - Creates a quiz for Chapter 1
-   - Assigns it to students
-   - Grades submissions
-   - Records scores
+10. API Integration
+```typescript
+// Campus Router Extension
+export const campusRouter = createTRPCRouter({
+  // Existing campus management endpoints
+  createClass: protectedProcedure
+    .input(createCampusClassSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Create class with campus association
+    }),
 
-4. ACTIVITY FLOW
-```mermaid
-graph TD
-    A[Institute Level Templates] --> B[Teacher Creates Activity]
-    B --> C[Students See Activity]
-    C --> D[Students Submit Work]
-    D --> E[Teacher Grades]
-    E --> F[Grades Recorded]
+  recordAttendance: protectedProcedure
+    .input(campusAttendanceSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Record and sync attendance
+    }),
+
+  updateGrades: protectedProcedure
+    .input(campusGradeSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Update and sync grades
+    })
+});
 ```
 
-Real-world example:
-1. Institute provides quiz template
-2. Grade 1 Math teacher:
-   - Creates "Addition Quiz"
-   - Uses institute template
-   - Sets deadline
-   - Assigns to class
-3. Students:
-   - See quiz in their portal
-   - Complete and submit
-4. Teacher:
-   - Grades submissions
-   - Provides feedback
+This implementation:
+1. Maintains consistency with existing types (Class, Student, Teacher)
+2. Integrates with the gradebook system
+3. Supports attendance tracking
+4. Enables local operations with central sync
+5. Provides clear access control
+6. Ensures data consistency
+7. Supports scalability
+8. Facilitates reporting at both levels
 
-5. DATA STRUCTURE
-```mermaid
-graph TD
-    A[Institute] --> B[Programs]
-    B --> C[Class Groups]
-    C --> D[Subjects + Curriculum]
-    D --> E[Campus Classes]
-    E --> F[Teacher Activities]
-    F --> G[Student Work]
-```
+The system follows the bank branch analogy where:
+- Campus = Branch
+- Central Database = Head Office
+- Local Operations = Branch Operations
+- Sync Service = Banking Network
+- Access Control = Branch Authority Levels
 
-Like a filing system:
-- Institute keeps master copies
-- Campus has working copies
-- Teachers add their materials
-- Students submit their work
-- Everything stays organized and connected
-
-Benefits:
-1. Standardization:
-   - All campuses follow same curriculum
-   - Activities maintain quality standards
-   - Grading is consistent
-
-2. Flexibility:
-   - Teachers can customize activities
-   - Each campus manages its classes
-   - Students get personalized attention
-
-3. Organization:
-   - Clear flow of information
-   - Easy to track progress
-   - Everything properly connected
-
-This structure ensures:
-- Quality control from institute level
-- Freedom for teachers to teach their way
-- Easy management of student work
-- Clear tracking of grades and progress
-
-Does this help explain how everything flows from top to bottom? Let me know if you need any part explained in more detail!
+This structure ensures efficient local operations while maintaining central oversight and standardization.

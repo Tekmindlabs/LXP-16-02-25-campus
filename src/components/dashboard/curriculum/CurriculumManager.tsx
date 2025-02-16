@@ -15,11 +15,8 @@ import { ResourceManager } from './ResourceManager';
 import { NodeEditor } from './NodeEditor';
 import { UnifiedActivityManager } from './UnifiedActivityManager';
 
-interface CurriculumManagerProps {
-	subjectId: string;
-}
+export function CurriculumManager({ subjectId }: { subjectId: string }) {
 
-export function CurriculumManager({ subjectId }: CurriculumManagerProps) {
 	const [selectedNode, setSelectedNode] = useState<CurriculumNode | null>(null);
 	const [activeView, setActiveView] = useState<'content' | 'resources' | 'activities'>('content');
 	const [showNodeEditor, setShowNodeEditor] = useState(false);
@@ -36,7 +33,7 @@ export function CurriculumManager({ subjectId }: CurriculumManagerProps) {
 				</SheetTrigger>
 				<SheetContent side="left" className="w-[300px] sm:w-[400px]">
 					<CurriculumTree
-						subjectId={subjectId}
+						nodes={nodes}
 						onNodeSelect={(node) => {
 							setSelectedNode(node);
 							setIsSheetOpen(false);
@@ -48,7 +45,7 @@ export function CurriculumManager({ subjectId }: CurriculumManagerProps) {
 			{/* Desktop Curriculum Tree */}
 			<div className="hidden lg:block col-span-3">
 				<CurriculumTree
-					subjectId={subjectId}
+					nodes={nodes}
 					onNodeSelect={setSelectedNode}
 				/>
 			</div>
@@ -98,23 +95,24 @@ export function CurriculumManager({ subjectId }: CurriculumManagerProps) {
 								</TabsContent>
 							</Tabs>
 						</div>
+
+						{showNodeEditor && (
+							<Dialog open={showNodeEditor} onOpenChange={setShowNodeEditor}>
+								<DialogContent>
+									<NodeEditor
+										node={selectedNode}
+										onClose={() => setShowNodeEditor(false)}
+									/>
+								</DialogContent>
+							</Dialog>
+						)}
 					</>
 				) : (
 					<div className="text-center py-8 text-gray-500">
-						Select a curriculum node to view its content
+						Select a node to view content
 					</div>
 				)}
 			</div>
-
-			{/* Node Editor Dialog */}
-			<Dialog open={showNodeEditor} onOpenChange={setShowNodeEditor}>
-				<DialogContent>
-					<NodeEditor
-						node={selectedNode}
-						onClose={() => setShowNodeEditor(false)}
-					/>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }

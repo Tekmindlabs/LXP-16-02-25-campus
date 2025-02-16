@@ -1,11 +1,22 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import { ActivityService } from '@/server/services/activity.service';
-import { ActivityScope, ActivityStatus } from '@/types/class-activity';
-import { TRPCError } from '@trpc/server';
+import { ActivityScope, ActivityStatus, ActivityType, ActivityMode, ActivityGradingType, ActivityViewType } from '@/types/class-activity';
+
 import { prisma } from '@/server/db';
 
 const activityService = new ActivityService(prisma);
+
+const configurationSchema = z.object({
+	activityMode: z.nativeEnum(ActivityMode),
+	isGraded: z.boolean(),
+	totalMarks: z.number().min(0),
+	passingMarks: z.number().min(0),
+	gradingType: z.nativeEnum(ActivityGradingType),
+	availabilityDate: z.date(),
+	deadline: z.date(),
+	viewType: z.nativeEnum(ActivityViewType)
+}).required();
 
 export const activityRouter = createTRPCRouter({
 	getAll: protectedProcedure
@@ -24,13 +35,13 @@ export const activityRouter = createTRPCRouter({
 		.input(z.object({
 			title: z.string(),
 			description: z.string().optional(),
-			type: z.string(),
+			type: z.nativeEnum(ActivityType),
 			scope: z.nativeEnum(ActivityScope),
 			subjectId: z.string(),
 			classId: z.string().optional(),
 			curriculumNodeId: z.string().optional(),
 			isTemplate: z.boolean().optional(),
-			configuration: z.any(),
+			configuration: configurationSchema,
 			resources: z.array(z.any()).optional()
 		}))
 		.mutation(async ({ input }) => {
@@ -42,9 +53,9 @@ export const activityRouter = createTRPCRouter({
 			id: z.string(),
 			title: z.string().optional(),
 			description: z.string().optional(),
-			type: z.string().optional(),
+			type: z.nativeEnum(ActivityType).optional(),
 			status: z.nativeEnum(ActivityStatus).optional(),
-			configuration: z.any().optional(),
+			configuration: configurationSchema.optional(),
 			resources: z.array(z.any()).optional()
 		}))
 		.mutation(async ({ input }) => {

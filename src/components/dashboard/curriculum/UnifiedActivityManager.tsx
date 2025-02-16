@@ -1,78 +1,57 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ActivityScope, ActivityType, UnifiedActivity } from '@/types/class-activity';
 import { api } from '@/utils/api';
-
-interface ActivityListProps {
-	activities?: UnifiedActivity[];
-	onEdit: (id: string) => void;
-	scope: ActivityScope;
-}
-
-const ActivityList = ({ activities, onEdit, scope }: ActivityListProps) => {
-	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-			{activities?.map(activity => (
-				<Card key={activity.id}>
-					<CardHeader>
-						<CardTitle>{activity.title}</CardTitle>
-						<CardDescription>{activity.type}</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<p className="text-sm text-gray-500">
-							{activity.description}
-						</p>
-					</CardContent>
-					<CardFooter className="flex justify-between">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => onEdit(activity.id)}
-						>
-							Edit
-						</Button>
-						{scope === ActivityScope.CURRICULUM && (
-							<Badge>Curriculum</Badge>
-						)}
-					</CardFooter>
-				</Card>
-			))}
-		</div>
-	);
-};
-
-interface UnifiedActivityManagerProps {
-	subjectId: string;
-	classId?: string;
-	curriculumNodeId?: string;
-	scope?: ActivityScope;
-}
+import { ActivityScope } from '@/types/class-activity';
+import { Button } from '@/components/ui/button';
+import { ActivityList } from './ActivityList';
+import { ActivityForm } from './ActivityForm';
+import { ActivityTemplates } from './ActivityTemplates';
+import { toast } from 'sonner';
 
 export function UnifiedActivityManager({
 	subjectId,
 	classId,
 	curriculumNodeId,
 	scope = ActivityScope.CLASS
-}: UnifiedActivityManagerProps) {
+}: {
+	subjectId: string;
+	classId?: string;
+	curriculumNodeId?: string;
+	scope?: ActivityScope;
+}) {
 	const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
 	const [view, setView] = useState<'list' | 'form' | 'templates'>('list');
 
-	const { data: activities } = api.activity.getAll.useQuery({
+	const { data: activities, refetch } = api.activity.getAll.useQuery({
 		subjectId,
 		classId,
-		curriculumNodeId,
-		scope
+		curriculumNodeId
 	});
+
+	const { mutate: cloneTemplate } = api.activity.cloneTemplate.useMutation({
+		onSuccess: () => {
+			toast.success('Template cloned successfully');
+			refetch();
+			setView('list');
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		}
+	});
+
+	const handleTemplateSelect = (templateId: string) => {
+		if (!classId) {
+			toast.error('Class ID is required to clone template');
+			return;
+		}
+		cloneTemplate({ templateId, classId });
+	};
 
 	return (
 		<div>
 			<div className="flex justify-between mb-4">
-				<h2 className="text-2xl font-bold">Activities</h2>
+				<h2>Activities</h2>
 				<div className="space-x-2">
 					{classId && (
 						<Button onClick={() => setView('templates')}>
@@ -95,7 +74,7 @@ export function UnifiedActivityManager({
 
 			{view === 'form' && (
 				<ActivityForm
-					activityId={selectedActivity}
+					activityId={selectedActivity || undefined}
 					subjectId={subjectId}
 					classId={classId}
 					curriculumNodeId={curriculumNodeId}
@@ -107,25 +86,14 @@ export function UnifiedActivityManager({
 				/>
 			)}
 
-			{view === 'templates' && classId && (
+			{view === 'templates' && (
 				<ActivityTemplates
 					subjectId={subjectId}
-					onSelect={(templateId) => {
-						// Clone template logic will be implemented in the API
-						api.activity.cloneTemplate.mutate({
-							templateId,
-							classId
-						}, {
-							onSuccess: () => {
-								setView('list');
-							}
-						});
-					}}
+					onSelect={handleTemplateSelect}
 				/>
 			)}
 		</div>
 	);
 }
 
-// Export the component as default
 export default UnifiedActivityManager;

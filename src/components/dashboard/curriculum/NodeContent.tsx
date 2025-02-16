@@ -1,46 +1,35 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CurriculumNode } from '@/types/curriculum';
 
-interface NodeContentProps {
-	node: CurriculumNode;
-}
-
-export function NodeContent({ node }: NodeContentProps) {
+export function NodeContent({ node }: { node: CurriculumNode }) {
 	return (
-		<div className="space-y-4">
-			<Card>
-				<CardHeader>
-					<CardTitle>Learning Objectives</CardTitle>
-					<CardDescription>Key learning outcomes for this unit</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className="prose dark:prose-invert">
-						{node.learningObjectives ? (
-							<div dangerouslySetInnerHTML={{ __html: node.learningObjectives }} />
-						) : (
-							<p className="text-gray-500">No learning objectives defined</p>
-						)}
+		<div className="space-y-6">
+			<div>
+				<h3 className="text-lg font-medium mb-2">Learning Objectives</h3>
+				{node.learningContext?.objectives ? (
+					<div>
+						{node.learningContext.objectives.map((objective, index) => (
+							<div key={index} className="mb-2">{objective}</div>
+						))}
 					</div>
-				</CardContent>
-			</Card>
+				) : (
+					<p className="text-muted-foreground">No learning objectives defined</p>
+				)}
+			</div>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Content</CardTitle>
-					<CardDescription>Unit content and materials</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className="prose dark:prose-invert">
-						{node.content ? (
-							<div dangerouslySetInnerHTML={{ __html: node.content }} />
-						) : (
-							<p className="text-gray-500">No content available</p>
-						)}
+			<div>
+				<h3 className="text-lg font-medium mb-2">Resources</h3>
+				{node.resourceContext?.materials?.primary?.length ? (
+					<div>
+						{node.resourceContext.materials.primary.map((material, index) => (
+							<div key={index} className="mb-2">{material}</div>
+						))}
 					</div>
-				</CardContent>
-			</Card>
+				) : (
+					<p className="text-muted-foreground">No resources available</p>
+				)}
+			</div>
 		</div>
 	);
 }

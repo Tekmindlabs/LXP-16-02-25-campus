@@ -1,22 +1,54 @@
-import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { ActivityType, CurriculumResourceType } from "@prisma/client";
-import { NodeType, ResourceFileInfo, NodeLearningContext, NodeResourceContext, NodeAssessmentContext } from "@/types/curriculum";
+import { z } from 'zod';
+import { createTRPCRouter, protectedProcedure } from '../trpc';
+import { prisma } from '@/server/db';
+import { NodeType, ActivityType } from '@/types/curriculum';
+
+// Define Zod enums based on our types
+const nodeTypeEnum = z.enum(['CHAPTER', 'TOPIC', 'SUBTOPIC']);
+const resourceTypeEnum = z.enum(['READING', 'VIDEO', 'URL', 'DOCUMENT']);
+const activityTypeEnum = z.enum([
+	'QUIZ_MULTIPLE_CHOICE',
+	'QUIZ_DRAG_DROP',
+	'QUIZ_FILL_BLANKS',
+	'QUIZ_MEMORY',
+	'QUIZ_TRUE_FALSE',
+	'GAME_WORD_SEARCH',
+	'GAME_CROSSWORD',
+	'GAME_FLASHCARDS',
+	'VIDEO_YOUTUBE',
+	'READING',
+	'CLASS_ASSIGNMENT',
+	'CLASS_PROJECT',
+	'CLASS_PRESENTATION',
+	'CLASS_TEST',
+	'CLASS_EXAM'
+]);
+
+
 
 export const curriculumRouter = createTRPCRouter({
-	// Node operations
 	getNodes: protectedProcedure
 		.input(z.object({
 			subjectId: z.string()
 		}))
-		.query(async ({ ctx, input }) => {
-			return ctx.prisma.curriculumNode.findMany({
+		.query(async ({ input }) => {
+			return prisma.curriculumNode.findMany({
 				where: { subjectId: input.subjectId },
 				include: {
+					children: true,
 					resources: true,
 					activities: true
-				},
-				orderBy: { order: 'asc' }
+				}
+			});
+		}),
+
+	getResources: protectedProcedure
+		.input(z.object({
+			nodeId: z.string()
+		}))
+		.query(async ({ input }) => {
+			return prisma.curriculumResource.findMany({
+				where: { nodeId: input.nodeId }
 			});
 		}),
 
@@ -24,8 +56,8 @@ export const curriculumRouter = createTRPCRouter({
 		.input(z.object({
 			nodeId: z.string()
 		}))
-		.query(async ({ ctx, input }) => {
-			return ctx.prisma.curriculumNode.findUnique({
+		.query(async ({ input }) => {
+			return prisma.curriculumNode.findUnique({
 				where: { id: input.nodeId },
 				include: {
 					resources: true,
@@ -38,7 +70,7 @@ export const curriculumRouter = createTRPCRouter({
 		.input(z.object({
 			title: z.string(),
 			description: z.string().optional(),
-			type: z.enum(["CHAPTER", "TOPIC", "SUBTOPIC"] as const),
+			type: nodeTypeEnum,
 			parentId: z.string().optional(),
 			order: z.number(),
 			subjectId: z.string()
@@ -58,7 +90,7 @@ export const curriculumRouter = createTRPCRouter({
 			id: z.string(),
 			title: z.string().optional(),
 			description: z.string().optional(),
-			type: z.enum(["CHAPTER", "TOPIC", "SUBTOPIC"]).optional(),
+			type: nodeTypeEnum.optional(),
 			parentId: z.string().optional(),
 			order: z.number().optional(),
 			learningContext: z.object({
@@ -105,7 +137,7 @@ export const curriculumRouter = createTRPCRouter({
 	createResource: protectedProcedure
 		.input(z.object({
 			title: z.string().min(1, "Title is required"),
-			type: z.nativeEnum(CurriculumResourceType),
+			type: resourceTypeEnum,
 			content: z.string().min(1, "Content is required"),
 			nodeId: z.string(),
 			fileInfo: z.object({
@@ -151,7 +183,7 @@ export const curriculumRouter = createTRPCRouter({
 		.input(z.object({
 			id: z.string(),
 			title: z.string().optional(),
-			type: z.nativeEnum(CurriculumResourceType).optional(),
+			type: resourceTypeEnum.optional(),
 			content: z.string().optional(),
 			fileInfo: z.record(z.any()).optional()
 		}))
@@ -186,7 +218,7 @@ export const curriculumRouter = createTRPCRouter({
 	createActivity: protectedProcedure
 		.input(z.object({
 			title: z.string(),
-			type: z.nativeEnum(ActivityType),
+			type: activityTypeEnum,
 			content: z.record(z.any()),
 			isGraded: z.boolean(),
 			nodeId: z.string()
@@ -207,7 +239,7 @@ export const curriculumRouter = createTRPCRouter({
 		.input(z.object({
 			id: z.string(),
 			title: z.string().optional(),
-			type: z.nativeEnum(ActivityType).optional(),
+			type: activityTypeEnum.optional(),
 			content: z.record(z.any()).optional(),
 			isGraded: z.boolean().optional()
 		}))

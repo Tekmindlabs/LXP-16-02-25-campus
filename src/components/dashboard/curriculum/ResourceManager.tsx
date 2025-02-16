@@ -1,11 +1,12 @@
 'use client';
 
+import { CurriculumResource } from '@/types/curriculum';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/utils/api';
-import { FileIcon, UploadIcon } from 'lucide-react';
+import { FileIcon } from 'lucide-react';
 import { useState } from 'react';
-import { ResourceUpload } from './resource-upload';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 interface ResourceManagerProps {
 	nodeId: string;
@@ -19,14 +20,11 @@ export function ResourceManager({ nodeId }: ResourceManagerProps) {
 		<div className="space-y-4">
 			<div className="flex justify-between items-center">
 				<h3 className="text-lg font-semibold">Resources</h3>
-				<Button onClick={() => setShowUpload(true)}>
-					<UploadIcon className="w-4 h-4 mr-2" />
-					Upload Resource
-				</Button>
+				<Button onClick={() => setShowUpload(true)}>Add Resource</Button>
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				{resources?.map(resource => (
+				{resources?.map((resource: CurriculumResource) => (
 					<Card key={resource.id}>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
@@ -35,24 +33,22 @@ export function ResourceManager({ nodeId }: ResourceManagerProps) {
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<p className="text-sm text-gray-500">{resource.description}</p>
-							<div className="mt-4">
-								<Button variant="outline" size="sm" asChild>
-									<a href={resource.url} target="_blank" rel="noopener noreferrer">
-										View Resource
-									</a>
-								</Button>
-							</div>
+							<p>{resource.type}</p>
+							<p>{resource.content}</p>
 						</CardContent>
 					</Card>
 				))}
 			</div>
 
 			{showUpload && (
-				<ResourceUpload
-					nodeId={nodeId}
-					onClose={() => setShowUpload(false)}
-				/>
+				<Dialog open={showUpload} onOpenChange={setShowUpload}>
+					<DialogContent>
+						<div className="p-4">
+							<h2 className="text-lg font-semibold mb-4">Upload Resource</h2>
+							{/* Resource upload form will be implemented */}
+						</div>
+					</DialogContent>
+				</Dialog>
 			)}
 		</div>
 	);

@@ -143,7 +143,7 @@ export interface ClassActivity {
 	};
 }
 
-export interface ActivityWithBasicSubmissions extends ClassActivity {
+export interface ActivityWithBasicSubmissions extends Omit<ClassActivity, 'submissions'> {
 	submissions?: Array<{
 		id: string;
 		status: ActivitySubmissionStatus;
