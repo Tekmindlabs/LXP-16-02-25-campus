@@ -61,7 +61,10 @@ export const campusGradeBookRouter = createTRPCRouter({
 				assessmentService
 			);
 
-			// This will use the parent class's method but with permission check from CampusGradeBookService
-			return gradeBookService.getGradeBook(input.classId);
+			return gradeBookService.getGradeBook(
+				ctx.session.user.id,
+				input.campusId,
+				input.classId
+			);
 		})
 });

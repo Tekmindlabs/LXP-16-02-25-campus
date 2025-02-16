@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { PrismaClient } from '@prisma/client';
 import { CampusAttendanceService } from '../services/CampusAttendanceService';
 import { CampusUserService } from '../services/CampusUserService';
-import { AttendanceStatus, CampusPermission } from '../../types/enums';
+import { AttendanceStatus } from '@prisma/client';
+import { CampusPermission } from '../../types/enums';
 
 jest.mock('@prisma/client');
 jest.mock('../services/CampusUserService');
@@ -13,8 +14,23 @@ describe('CampusAttendanceService', () => {
 	let attendanceService: CampusAttendanceService;
 
 	beforeEach(() => {
-		prisma = new PrismaClient() as jest.Mocked<PrismaClient>;
-		userService = new CampusUserService(prisma) as jest.Mocked<CampusUserService>;
+		prisma = {
+			attendance: {
+				create: jest.fn(),
+				update: jest.fn(),
+				findUnique: jest.fn(),
+				findMany: jest.fn()
+			},
+			attendanceAudit: {
+				create: jest.fn()
+			},
+			$transaction: jest.fn()
+		} as unknown as jest.Mocked<PrismaClient>;
+		
+		userService = {
+			hasPermission: jest.fn()
+		} as unknown as jest.Mocked<CampusUserService>;
+		
 		attendanceService = new CampusAttendanceService(prisma, userService);
 	});
 
@@ -58,7 +74,11 @@ describe('CampusAttendanceService', () => {
 	describe('updateAttendance', () => {
 		it('should update attendance when user has permission', async () => {
 			userService.hasPermission.mockResolvedValue(true);
-			prisma.campusAttendance.update.mockResolvedValue({ id: 'attendance-1' });
+			prisma.attendance.findUnique.mockResolvedValue({
+				id: 'attendance-1',
+				status: AttendanceStatus.PRESENT
+			} as any);
+			prisma.attendance.update.mockResolvedValue({ id: 'attendance-1' } as any);
 
 			await attendanceService.updateAttendance(
 				'user-1',
@@ -68,7 +88,7 @@ describe('CampusAttendanceService', () => {
 				'Late arrival'
 			);
 
-			expect(prisma.campusAttendance.update).toHaveBeenCalledWith({
+			expect(prisma.attendance.update).toHaveBeenCalledWith({
 				where: { id: 'attendance-1' },
 				data: expect.objectContaining({
 					status: AttendanceStatus.LATE,
@@ -86,12 +106,14 @@ describe('CampusAttendanceService', () => {
 					studentId: 'student-1',
 					status: AttendanceStatus.PRESENT,
 					date: new Date(),
-					markedBy: { id: 'teacher-1', name: 'Teacher 1' }
+					student: {
+						user: { id: 'student-1', name: 'Student 1' }
+					}
 				}
 			];
 
 			userService.hasPermission.mockResolvedValue(true);
-			prisma.campusAttendance.findMany.mockResolvedValue(mockAttendance);
+			prisma.attendance.findMany.mockResolvedValue(mockAttendance as any);
 
 			const result = await attendanceService.getAttendanceByClass(
 				'user-1',

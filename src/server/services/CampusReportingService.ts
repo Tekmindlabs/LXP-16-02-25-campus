@@ -1,49 +1,35 @@
 import { PrismaClient } from "@prisma/client";
-import { CampusUserService } from "./CampusUserService";
-import { CampusPermission } from "../../types/enums";
 import { TRPCError } from "@trpc/server";
+import { TeacherProfile } from "../../types/teacher";
+import { CampusPermission } from "../../types/enums";
+import { CampusUserService } from "./CampusUserService";
 
 interface AttendanceStats {
-	totalStudents: number;
-	averageAttendance: number;
-	byStatus: Record<string, number>;
-	byClass: Array<{
-		classId: string;
-		className: string;
-		attendanceRate: number;
-	}>;
+	className: string;
+	attendanceRate: number;
 }
 
-interface AcademicPerformance {
-	overallAverage: number;
-	bySubject: Array<{
-		subjectId: string;
-		subjectName: string;
-		average: number;
-		passingRate: number;
-	}>;
-	byClass: Array<{
-		classId: string;
-		className: string;
-		average: number;
-	}>;
+interface SubjectStats {
+	subjectId: string;
+	subjectName: string;
+	average: number;
+	passingRate: number;
 }
 
 interface TeacherStats {
-	totalTeachers: number;
-	bySubject: Record<string, number>;
-	classDistribution: Array<{
-		teacherId: string;
-		teacherName: string;
-		classCount: number;
-		subjectCount: number;
-	}>;
+	teacherId: string;
+	teacherName: string;
+	classCount: number;
+	subjectCount: number;
+	attendanceStats: AttendanceStats[];
+	subjectStats: SubjectStats[];
 }
+
 
 export class CampusReportingService {
 	constructor(
 		private readonly db: PrismaClient,
-		private readonly campusUserService: CampusUserService
+		private readonly userService: CampusUserService
 	) {}
 
 	async getAttendanceStats(
@@ -51,11 +37,11 @@ export class CampusReportingService {
 		campusId: string,
 		startDate: Date,
 		endDate: Date
-	): Promise<AttendanceStats> {
-		const hasPermission = await this.campusUserService.hasPermission(
+	): Promise<AttendanceStats[]> {
+		const hasPermission = await this.userService.hasPermission(
 			userId,
 			campusId,
-			CampusPermission.VIEW_CAMPUS
+			CampusPermission.VIEW_REPORTS
 		);
 
 		if (!hasPermission) {
@@ -65,57 +51,46 @@ export class CampusReportingService {
 			});
 		}
 
-		const attendance = await this.db.attendance.findMany({
-			where: {
-				class: {
-					campus: { id: campusId }
-				},
-				date: {
-					gte: startDate,
-					lte: endDate
-				}
-			},
-			include: {
-				class: true
-			}
-		});
+		try {
+			const attendanceData = await this.db.$queryRaw<Array<{
+				className: string;
+				present: number;
+				total: number;
+			}>>`
+				SELECT 
+					c.name as className,
+					COUNT(CASE WHEN a.status = 'PRESENT' THEN 1 END) as present,
+					COUNT(*) as total
+				FROM attendance a
+				JOIN classes c ON a.class_id = c.id
+				WHERE c.campus_id = ${campusId}
+				AND a.date BETWEEN ${startDate} AND ${endDate}
+				GROUP BY c.id, c.name
+			`;
 
-		const totalStudents = await this.db.studentProfile.count({
-			where: {
-				class: {
-					campus: { id: campusId }
-				}
-			}
-		});
 
-		const byStatus = attendance.reduce((acc, record) => {
-			acc[record.status] = (acc[record.status] || 0) + 1;
-			return acc;
-		}, {} as Record<string, number>);
-
-		const byClass = await this.calculateClassAttendance(attendance);
-
-		const averageAttendance = attendance.length > 0
-			? (byStatus['PRESENT'] || 0) / attendance.length * 100
-			: 0;
-
-		return {
-			totalStudents,
-			averageAttendance,
-			byStatus,
-			byClass
-		};
+			return attendanceData.map(data => ({
+				className: data.className,
+				attendanceRate: (data.present / data.total) * 100
+			}));
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch attendance stats"
+			});
+		}
 	}
+
 
 	async getAcademicPerformance(
 		userId: string,
 		campusId: string,
 		termId: string
-	): Promise<AcademicPerformance> {
-		const hasPermission = await this.campusUserService.hasPermission(
+	): Promise<SubjectStats[]> {
+		const hasPermission = await this.userService.hasPermission(
 			userId,
 			campusId,
-			CampusPermission.VIEW_GRADES
+			CampusPermission.VIEW_REPORTS
 		);
 
 		if (!hasPermission) {
@@ -125,47 +100,47 @@ export class CampusReportingService {
 			});
 		}
 
-		const gradeRecords = await this.db.subjectGradeRecord.findMany({
-			where: {
-				gradeBook: {
-					class: {
-						campus: { id: campusId }
-					}
-				}
-			},
-			include: {
-				subject: true,
-				gradeBook: {
-					include: {
-						class: true
-					}
-				}
-			}
-		});
+		try {
+			const subjectData = await this.db.$queryRaw<Array<{
+				subjectId: string;
+				subjectName: string;
+				grades: number[];
+				passing: number;
+				total: number;
+			}>>`
+				SELECT 
+					s.id as subjectId,
+					s.name as subjectName,
+					ARRAY_AGG(gr.grade) as grades,
+					COUNT(CASE WHEN gr.grade >= 60 THEN 1 END) as passing,
+					COUNT(*) as total
+				FROM subjects s
+				JOIN grade_records gr ON s.id = gr.subject_id
+				JOIN classes c ON gr.class_id = c.id
+				WHERE c.campus_id = ${campusId}
+				GROUP BY s.id, s.name
+			`;
 
-		const bySubject = await this.calculateSubjectPerformance(gradeRecords);
-		const byClass = await this.calculateClassPerformance(gradeRecords);
-
-		const overallAverage = bySubject.reduce(
-			(sum, subject) => sum + subject.average,
-			0
-		) / (bySubject.length || 1);
-
-		return {
-			overallAverage,
-			bySubject,
-			byClass
-		};
+			return subjectData.map(subject => ({
+				subjectId: subject.subjectId,
+				subjectName: subject.subjectName,
+				average: subject.grades.reduce((a, b) => a + b, 0) / subject.grades.length,
+				passingRate: (subject.passing / subject.total) * 100
+			}));
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch academic performance"
+			});
+		}
 	}
 
-	async getTeacherStats(
-		userId: string,
-		campusId: string
-	): Promise<TeacherStats> {
-		const hasPermission = await this.campusUserService.hasPermission(
+
+	async getTeacherStats(userId: string, campusId: string): Promise<TeacherStats[]> {
+		const hasPermission = await this.userService.hasPermission(
 			userId,
 			campusId,
-			CampusPermission.VIEW_CAMPUS_USERS
+			CampusPermission.VIEW_REPORTS
 		);
 
 		if (!hasPermission) {
@@ -175,122 +150,33 @@ export class CampusReportingService {
 			});
 		}
 
-		const teachers = await this.db.teacherProfile.findMany({
-			where: {
-				classes: {
-					some: {
-						class: {
-							campus: { id: campusId }
-						}
-					}
-				}
-			},
-			include: {
-				user: true,
-				classes: true,
-				subjects: true
-			}
-		});
-
-		const totalTeachers = teachers.length;
-
-		const bySubject = teachers.reduce((acc, teacher) => {
-			teacher.subjects.forEach(subject => {
-				acc[subject.subjectId] = (acc[subject.subjectId] || 0) + 1;
-			});
-			return acc;
-		}, {} as Record<string, number>);
-
-		const classDistribution = teachers.map(teacher => ({
-			teacherId: teacher.id,
-			teacherName: teacher.user.name || 'Unknown',
-			classCount: teacher.classes.length,
-			subjectCount: teacher.subjects.length
-		}));
-
-		return {
-			totalTeachers,
-			bySubject,
-			classDistribution
-		};
-	}
-
-	private async calculateClassAttendance(attendance: any[]) {
-		const classGroups = attendance.reduce((acc, record) => {
-			const classId = record.class.id;
-			if (!acc[classId]) {
-				acc[classId] = {
-					total: 0,
-					present: 0,
-					className: record.class.name
-				};
-			}
-			acc[classId].total++;
-			if (record.status === 'PRESENT') {
-				acc[classId].present++;
-			}
-			return acc;
-		}, {} as Record<string, any>);
-
-		return Object.entries(classGroups).map(([classId, data]) => ({
-			classId,
-			className: data.className,
-			attendanceRate: (data.present / data.total) * 100
-		}));
-	}
-
-	private async calculateSubjectPerformance(gradeRecords: any[]) {
-		const subjectGroups = gradeRecords.reduce((acc, record) => {
-			const subjectId = record.subject.id;
-			if (!acc[subjectId]) {
-				acc[subjectId] = {
-					subjectId,
-					subjectName: record.subject.name,
-					grades: [],
-					passing: 0,
-					total: 0
-				};
-			}
-			const grades = record.termGrades || {};
-			Object.values(grades).forEach((grade: any) => {
-				acc[subjectId].grades.push(grade.value);
-				acc[subjectId].total++;
-				if (grade.value >= 50) {
-					acc[subjectId].passing++;
+		try {
+			const teachers = await this.db.teacherProfile.findMany({
+				where: { campusId },
+				include: {
+					user: true,
+					subjects: true,
+					classes: true
 				}
 			});
-			return acc;
-		}, {} as Record<string, any>);
 
-		return Object.values(subjectGroups).map(subject => ({
-			subjectId: subject.subjectId,
-			subjectName: subject.subjectName,
-			average: subject.grades.reduce((a: number, b: number) => a + b, 0) / (subject.grades.length || 1),
-			passingRate: (subject.passing / subject.total) * 100
-		}));
-	}
-
-	private async calculateClassPerformance(gradeRecords: any[]) {
-		const classGroups = gradeRecords.reduce((acc, record) => {
-			const classId = record.gradeBook.class.id;
-			if (!acc[classId]) {
-				acc[classId] = {
-					classId,
-					className: record.gradeBook.class.name,
-					grades: []
-				};
-			}
-			const grades = record.termGrades || {};
-			Object.values(grades).forEach((grade: any) => {
-				acc[classId].grades.push(grade.value);
+			return teachers.map(teacher => ({
+				teacherId: teacher.id,
+				teacherName: teacher.user?.name || 'Unknown',
+				classCount: teacher.classes?.length || 0,
+				subjectCount: teacher.subjects?.length || 0,
+				attendanceStats: [], // Will be implemented if needed
+				subjectStats: [] // Will be implemented if needed
+			}));
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch teacher stats"
 			});
-			return acc;
-		}, {} as Record<string, any>);
-
-		return Object.values(classGroups).map(classGroup => ({
-			classId: classGroup.classId,
-			className: classGroup.className,
-			average: classGroup.grades.reduce((a: number, b: number) => a + b, 0) / (classGroup.grades.length || 1)
-		}));
+		}
 	}
+
+
+
+
 }

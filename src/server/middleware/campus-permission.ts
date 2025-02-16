@@ -1,32 +1,26 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { CampusPermission, CampusRole } from '../../types/enums';
 import { CampusUserService } from '../services/CampusUserService';
+import { CampusRole, CampusPermission } from '../../types/enums';
+import { TRPCError } from '@trpc/server';
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-const campusUserService = new CampusUserService(prisma);
-
-// Role hierarchy and default permissions mapping
 const ROLE_HIERARCHY: Record<CampusRole, CampusRole[]> = {
 	[CampusRole.CAMPUS_ADMIN]: [
 		CampusRole.CAMPUS_MANAGER,
-		CampusRole.CAMPUS_COORDINATOR,
 		CampusRole.CAMPUS_TEACHER,
 		CampusRole.CAMPUS_STUDENT
 	],
 	[CampusRole.CAMPUS_MANAGER]: [
-		CampusRole.CAMPUS_COORDINATOR,
-		CampusRole.CAMPUS_TEACHER,
-		CampusRole.CAMPUS_STUDENT
-	],
-	[CampusRole.CAMPUS_COORDINATOR]: [
 		CampusRole.CAMPUS_TEACHER,
 		CampusRole.CAMPUS_STUDENT
 	],
 	[CampusRole.CAMPUS_TEACHER]: [
 		CampusRole.CAMPUS_STUDENT
 	],
-	[CampusRole.CAMPUS_STUDENT]: []
+	[CampusRole.CAMPUS_STUDENT]: [],
+	[CampusRole.CAMPUS_COORDINATOR]: [
+		CampusRole.CAMPUS_TEACHER,
+		CampusRole.CAMPUS_STUDENT
+	]
 };
 
 const ROLE_PERMISSIONS: Record<CampusRole, CampusPermission[]> = {
@@ -34,113 +28,75 @@ const ROLE_PERMISSIONS: Record<CampusRole, CampusPermission[]> = {
 	[CampusRole.CAMPUS_MANAGER]: [
 		CampusPermission.VIEW_CAMPUS,
 		CampusPermission.MANAGE_BUILDINGS,
-		CampusPermission.MANAGE_ROOMS,
-		CampusPermission.VIEW_BUILDINGS,
-		CampusPermission.VIEW_ROOMS,
-		CampusPermission.MANAGE_CAMPUS_USERS,
-		CampusPermission.VIEW_CAMPUS_USERS,
-		CampusPermission.MANAGE_CAMPUS_CLASSES,
-		CampusPermission.VIEW_CAMPUS_CLASSES
-	],
-	[CampusRole.CAMPUS_COORDINATOR]: [
-		CampusPermission.VIEW_CAMPUS,
-		CampusPermission.VIEW_BUILDINGS,
-		CampusPermission.VIEW_ROOMS,
-		CampusPermission.MANAGE_CAMPUS_CLASSES,
-		CampusPermission.VIEW_CAMPUS_CLASSES,
-		CampusPermission.MANAGE_ATTENDANCE,
-		CampusPermission.VIEW_ATTENDANCE
+		CampusPermission.MANAGE_ROOMS
 	],
 	[CampusRole.CAMPUS_TEACHER]: [
 		CampusPermission.VIEW_CAMPUS,
 		CampusPermission.VIEW_BUILDINGS,
-		CampusPermission.VIEW_ROOMS,
-		CampusPermission.VIEW_CAMPUS_CLASSES,
-		CampusPermission.MANAGE_ATTENDANCE,
-		CampusPermission.VIEW_ATTENDANCE,
-		CampusPermission.MANAGE_GRADES,
-		CampusPermission.VIEW_GRADES
+		CampusPermission.VIEW_ROOMS
 	],
 	[CampusRole.CAMPUS_STUDENT]: [
+		CampusPermission.VIEW_CAMPUS
+	],
+	[CampusRole.CAMPUS_COORDINATOR]: [
 		CampusPermission.VIEW_CAMPUS,
-		CampusPermission.VIEW_CAMPUS_CLASSES,
-		CampusPermission.VIEW_ATTENDANCE,
-		CampusPermission.VIEW_GRADES
+		CampusPermission.MANAGE_CLASSES,
+		CampusPermission.VIEW_BUILDINGS,
+		CampusPermission.VIEW_ROOMS
 	]
 };
 
-async function checkRoleHierarchy(
+export async function withCampusRole(
+	userService: CampusUserService,
 	userId: string,
 	campusId: string,
 	requiredRole: CampusRole
 ): Promise<boolean> {
-	const userRole = await campusUserService.getUserRole(userId, campusId);
+	const userRole = await userService.getUserRole(userId, campusId);
 	if (!userRole) return false;
 
 	return ROLE_HIERARCHY[userRole].includes(requiredRole) || userRole === requiredRole;
 }
 
 export async function withCampusPermission(
-	req: NextApiRequest,
-	res: NextApiResponse,
+	userService: CampusUserService,
+	userId: string,
+	campusId: string,
 	permission: CampusPermission
 ): Promise<boolean> {
-	const userId = req.session?.user?.id;
-	const campusId = req.query.campusId as string;
+	const userRole = await userService.getUserRole(userId, campusId);
+	if (!userRole) return false;
 
-	if (!userId || !campusId) {
-		res.status(401).json({ error: 'Unauthorized' });
-		return false;
-	}
-
-	const userRole = await campusUserService.getUserRole(userId, campusId);
-	if (!userRole) {
-		res.status(403).json({ error: 'No role assigned for this campus' });
-		return false;
-	}
-
-	// Check if user has permission through their role
 	const hasPermission = ROLE_PERMISSIONS[userRole].includes(permission);
 	if (!hasPermission) {
-		res.status(403).json({ error: 'Insufficient permissions' });
-		return false;
-	}
-
-	// Check if user has any additional custom permissions
-	const hasCustomPermission = await campusUserService.hasPermission(userId, campusId, permission);
-	if (!hasPermission && !hasCustomPermission) {
-		res.status(403).json({ error: 'Insufficient permissions' });
-		return false;
+		throw new TRPCError({
+			code: 'FORBIDDEN',
+			message: `User lacks required permission: ${permission}`
+		});
 	}
 
 	return true;
 }
 
 export function requireCampusPermission(permission: CampusPermission) {
-	return async (req: NextApiRequest, res: NextApiResponse, next: () => void) => {
-		const result = await withCampusPermission(req, res, permission);
-		if (result === true) {
-			next();
-		}
-	};
-}
-
-export function requireCampusRole(role: CampusRole) {
-	return async (req: NextApiRequest, res: NextApiResponse, next: () => void) => {
-		const userId = req.session?.user?.id;
-		const campusId = req.query.campusId as string;
-
-		if (!userId || !campusId) {
-			res.status(401).json({ error: 'Unauthorized' });
-			return;
+	return async (ctx: { prisma: PrismaClient; userId?: string; campusId?: string }) => {
+		if (!ctx.userId || !ctx.campusId) {
+			throw new TRPCError({
+				code: 'UNAUTHORIZED',
+				message: 'Missing user or campus context'
+			});
 		}
 
-		const hasRole = await checkRoleHierarchy(userId, campusId, role);
-		if (!hasRole) {
-			res.status(403).json({ error: 'Insufficient role level' });
-			return;
+		const userService = new CampusUserService(ctx.prisma);
+		const result = await withCampusPermission(userService, ctx.userId, ctx.campusId, permission);
+		
+		if (!result) {
+			throw new TRPCError({
+				code: 'FORBIDDEN',
+				message: `Missing required permission: ${permission}`
+			});
 		}
 
-		next();
+		return true;
 	};
 }

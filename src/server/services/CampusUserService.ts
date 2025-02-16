@@ -1,68 +1,90 @@
 import { PrismaClient } from "@prisma/client";
 import { CampusRole, CampusPermission } from "../../types/enums";
-import { User } from "../../types/user";
+import { TRPCError } from "@trpc/server";
+
+interface CampusRoleInfo {
+	campusId: string;
+	role: CampusRole;
+	permissions: CampusPermission[];
+}
+
+interface CampusRoleRecord {
+	id: string;
+	userId: string;
+	campusId: string;
+	role: CampusRole;
+	permissions: CampusPermission[];
+}
 
 export class CampusUserService {
 	constructor(private readonly db: PrismaClient) {}
 
 	async assignCampusRole(userId: string, campusId: string, role: CampusRole): Promise<void> {
-		await this.db.campusRole.create({
-			data: {
-				userId,
-				campusId,
-				role,
-				permissions: this.getDefaultPermissionsForRole(role),
-				createdAt: new Date(),
-				updatedAt: new Date()
-			}
-		});
+		try {
+			await this.db.$executeRaw`
+				INSERT INTO campus_roles (user_id, campus_id, role, permissions)
+				VALUES (${userId}, ${campusId}, ${role}, ${this.getDefaultPermissionsForRole(role)})
+			`;
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to assign campus role"
+			});
+		}
 	}
 
 	async updateCampusRole(userId: string, campusId: string, role: CampusRole): Promise<void> {
-		await this.db.campusRole.update({
-			where: {
-				userId_campusId: {
-					userId,
-					campusId
-				}
-			},
-			data: {
-				role,
-				permissions: this.getDefaultPermissionsForRole(role),
-				updatedAt: new Date()
-			}
-		});
+		try {
+			await this.db.$executeRaw`
+				UPDATE campus_roles
+				SET role = ${role}, permissions = ${this.getDefaultPermissionsForRole(role)}
+				WHERE user_id = ${userId} AND campus_id = ${campusId}
+			`;
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to update campus role"
+			});
+		}
 	}
 
-	async removeCampusRole(userId: string, campusId: string): Promise<void> {
-		await this.db.campusRole.delete({
-			where: {
-				userId_campusId: {
-					userId,
-					campusId
-				}
-			}
-		});
-	}
-
-	async getUserCampusRoles(userId: string): Promise<CampusRole[]> {
-		const roles = await this.db.campusRole.findMany({
-			where: { userId }
-		});
-		return roles.map(r => r.role as CampusRole);
+	async getUserRole(userId: string, campusId: string): Promise<CampusRole | null> {
+		const result = await this.db.$queryRaw<CampusRoleRecord[]>`
+			SELECT * FROM campus_roles
+			WHERE user_id = ${userId} AND campus_id = ${campusId}
+		`;
+		return result[0]?.role ?? null;
 	}
 
 	async hasPermission(userId: string, campusId: string, permission: CampusPermission): Promise<boolean> {
-		const role = await this.db.campusRole.findUnique({
-			where: {
-				userId_campusId: {
-					userId,
-					campusId
-				}
-			}
-		});
-		return role?.permissions.includes(permission) ?? false;
+		const result = await this.db.$queryRaw<CampusRoleRecord[]>`
+			SELECT * FROM campus_roles
+			WHERE user_id = ${userId} AND campus_id = ${campusId}
+		`;
+		return result[0]?.permissions.includes(permission) ?? false;
 	}
+
+	async getUserCampusRoles(userId: string): Promise<CampusRoleInfo[]> {
+		try {
+			const roles = await this.db.$queryRaw<CampusRoleRecord[]>`
+				SELECT * FROM campus_roles
+				WHERE user_id = ${userId}
+			`;
+			
+			return roles.map(role => ({
+				campusId: role.campusId,
+				role: role.role,
+				permissions: role.permissions
+			}));
+		} catch (error) {
+			throw new TRPCError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Failed to fetch user campus roles"
+			});
+		}
+	}
+
+
 
 	private getDefaultPermissionsForRole(role: CampusRole): CampusPermission[] {
 		switch (role) {

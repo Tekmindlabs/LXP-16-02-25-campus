@@ -156,4 +156,56 @@ export class CampusGradeBookService extends GradeBookService {
 			}
 		});
 	}
+
+	async getGradeBook(userId: string, campusId: string, classId: string) {
+		const hasPermission = await this.campusUserService.hasPermission(
+			userId,
+			campusId,
+			CampusPermission.VIEW_GRADES
+		);
+
+		if (!hasPermission) {
+			throw new TRPCError({
+				code: "FORBIDDEN",
+				message: "Insufficient permissions to view grades"
+			});
+		}
+
+		const gradeBook = await this.prisma.gradeBook.findFirst({
+			where: { 
+				classId,
+				class: {
+					campusClass: {
+						campusId
+					}
+				}
+			},
+			include: {
+				assessmentSystem: true,
+				subjectRecords: {
+					include: {
+						subject: true
+					}
+				},
+				class: {
+					include: {
+						classGroup: {
+							include: {
+								subjects: true
+							}
+						}
+					}
+				}
+			}
+		});
+
+		if (!gradeBook) {
+			throw new TRPCError({
+				code: "NOT_FOUND",
+				message: "Grade book not found"
+			});
+		}
+
+		return gradeBook;
+	}
 }
