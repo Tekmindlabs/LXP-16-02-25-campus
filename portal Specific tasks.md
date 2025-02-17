@@ -1,196 +1,207 @@
-# Portal-Specific Tasks with AI Integration
+Based on the provided codebase, I'll analyze the current implementation and identify where campus role permissions need to be adjusted to align with the intended design.
 
-## 1. Program Coordinator Portal Tasks
+Current Implementation Issues:
 
-### 1.1 Dashboard & Analytics
+1. Over-permissive Campus Role Permissions:
 ```typescript
-interface CoordinatorDashboard {
-  programMetrics: ProgramAnalytics;
-  aiInsights: AIRecommendations;
-  alerts: AlertSystem;
+// From /types/campus.ts
+export enum CampusPermission {
+  MANAGE_USERS = "MANAGE_USERS",
+  MANAGE_PROGRAMS = "MANAGE_PROGRAMS", // Should be removed for campus roles
+  MANAGE_CLASSES = "MANAGE_CLASSES",
+  MANAGE_CLASSROOMS = "MANAGE_CLASSROOMS",
+  VIEW_ANALYTICS = "VIEW_ANALYTICS",
+  MANAGE_SETTINGS = "MANAGE_SETTINGS"
 }
 ```
-**Tasks:**
-- [ ] Create real-time program performance dashboard
-- [ ] Implement AI-driven program insights
-- [ ] Setup alert system for critical metrics
-- [ ] Build predictive analytics for program outcomes
 
-### 1.2 Program Management with AI Assistant
+2. Campus Role Service Implementation:
 ```typescript
-interface ProgramAIAssistant {
-  curriculumOptimizer: CurriculumAI;
-  resourceAllocation: ResourceAI;
-  performancePredictor: PredictiveAnalytics;
+// From /server/services/CampusUserService.ts
+export class CampusUserService {
+  // Currently allows assigning any permission to campus roles
+  async assignCampusRole(userId: string, campusId: string, role: CampusRole) {
+    // No validation to prevent program/classgroup management permissions
+  }
 }
 ```
-**Tasks:**
-- [ ] Implement AI curriculum optimization
-- [ ] Create smart resource allocation system
-- [ ] Build performance prediction models
-- [ ] Setup automated reporting system
 
-### 1.3 Teacher Performance Monitoring
+3. API Router Implementation:
 ```typescript
-interface TeacherAnalytics {
-  performanceMetrics: TeacherMetrics;
-  aiSuggestions: TeachingImprovements;
-  interventions: InterventionSystem;
+// From /server/api/routers/campus.ts
+export const campusRouter = createTRPCRouter({
+  // Currently allows campus roles to manage programs and class groups
+  // Should be restricted to only viewing inherited programs/groups
+});
+```
+
+Recommended Changes:
+
+1. Update Permission Structure:
+```typescript
+export enum CampusPermission {
+  // Campus-specific permissions
+  MANAGE_CAMPUS_CLASSES = "MANAGE_CAMPUS_CLASSES",
+  MANAGE_CAMPUS_TEACHERS = "MANAGE_CAMPUS_TEACHERS",
+  MANAGE_CAMPUS_STUDENTS = "MANAGE_CAMPUS_STUDENTS",
+  MANAGE_CAMPUS_TIMETABLES = "MANAGE_CAMPUS_TIMETABLES",
+  MANAGE_CAMPUS_ATTENDANCE = "MANAGE_CAMPUS_ATTENDANCE",
+  VIEW_CAMPUS_ANALYTICS = "VIEW_CAMPUS_ANALYTICS",
+  
+  // Read-only permissions for inherited items
+  VIEW_PROGRAMS = "VIEW_PROGRAMS",
+  VIEW_CLASS_GROUPS = "VIEW_CLASS_GROUPS"
 }
 ```
-**Tasks:**
-- [ ] Create teacher performance tracking
-- [ ] Implement AI-based teaching suggestions
-- [ ] Build intervention management system
-- [ ] Setup automated feedback system
 
-## 2. Teacher Portal Tasks
-
-### 2.1 AI Teaching Assistant
+2. Update Role Service:
 ```typescript
-interface TeachingAIAssistant {
-  lessonPlanner: LessonAI;
-  contentGenerator: ContentAI;
-  gradingAssistant: GradingAI;
+export class CampusUserService {
+  private readonly allowedCampusPermissions = [
+    CampusPermission.MANAGE_CAMPUS_CLASSES,
+    CampusPermission.MANAGE_CAMPUS_TEACHERS,
+    CampusPermission.MANAGE_CAMPUS_STUDENTS,
+    CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+    CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+    CampusPermission.VIEW_CAMPUS_ANALYTICS,
+    CampusPermission.VIEW_PROGRAMS,
+    CampusPermission.VIEW_CLASS_GROUPS
+  ];
+
+  async assignCampusRole(userId: string, campusId: string, role: CampusRole) {
+    // Validate permissions against allowed list
+    const validPermissions = role.permissions.filter(
+      perm => this.allowedCampusPermissions.includes(perm)
+    );
+
+    // Only assign valid permissions
+    await this.db.$executeRaw`
+      INSERT INTO campus_roles (user_id, campus_id, role, permissions)
+      VALUES (${userId}, ${campusId}, ${role.name}, ${validPermissions})
+    `;
+  }
 }
 ```
-**Tasks:**
-- [ ] Create AI lesson planning system
-- [ ] Implement content generation tools
-- [ ] Build automated grading assistant
-- [ ] Setup personalized teaching recommendations
 
-### 2.2 Student Progress Tracking
+3. Update API Routers:
 ```typescript
-interface StudentTracking {
-  progressAnalytics: ProgressAI;
-  interventionSuggestions: InterventionAI;
-  performancePredictor: PredictiveAI;
+// campus-class.ts
+export const campusClassRouter = createTRPCRouter({
+  create: protectedProcedure
+    .input(classCreateSchema)
+    .mutation(async ({ ctx, input }) => {
+      const hasPermission = await ctx.userService.hasPermission(
+        ctx.session.userId,
+        input.campusId,
+        CampusPermission.MANAGE_CAMPUS_CLASSES
+      );
+      
+      if (!hasPermission) {
+        throw new TRPCError({ code: 'FORBIDDEN' });
+      }
+      
+      // Create class logic
+    }),
+    
+  // Add endpoints for managing teachers, students, timetables, attendance
+});
+```
+
+4. Implement Read-only Views:
+```typescript
+// For inherited programs and class groups
+export const campusViewRouter = createTRPCRouter({
+  getInheritedPrograms: protectedProcedure
+    .input(z.object({ campusId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const hasPermission = await ctx.userService.hasPermission(
+        ctx.session.userId,
+        input.campusId,
+        CampusPermission.VIEW_PROGRAMS
+      );
+      
+      if (!hasPermission) {
+        throw new TRPCError({ code: 'FORBIDDEN' });
+      }
+      
+      return ctx.prisma.program.findMany({
+        where: {
+          campuses: {
+            some: {
+              id: input.campusId
+            }
+          }
+        }
+      });
+    }),
+    
+  getInheritedClassGroups: protectedProcedure
+    .input(z.object({ campusId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Similar implementation for class groups
+    })
+});
+```
+
+5. Update Class Service:
+```typescript
+// From CampusClassService.ts
+export class CampusClassService {
+  async createClass(userId: string, campusId: string, data: ClassCreateInput) {
+    const hasPermission = await this.userService.hasPermission(
+      userId,
+      campusId,
+      CampusPermission.MANAGE_CAMPUS_CLASSES
+    );
+
+    if (!hasPermission) {
+      throw new Error("User does not have permission to create classes");
+    }
+
+    // Validate that class group is inherited
+    const isInheritedClassGroup = await this.validateInheritedClassGroup(
+      campusId,
+      data.classGroupId
+    );
+
+    if (!isInheritedClassGroup) {
+      throw new Error("Cannot create class for non-inherited class group");
+    }
+
+    // Create class logic
+  }
+
+  private async validateInheritedClassGroup(
+    campusId: string,
+    classGroupId: string
+  ): Promise<boolean> {
+    const classGroup = await this.db.classGroup.findFirst({
+      where: {
+        id: classGroupId,
+        program: {
+          campuses: {
+            some: {
+              id: campusId
+            }
+          }
+        }
+      }
+    });
+    
+    return !!classGroup;
+  }
 }
 ```
-**Tasks:**
-- [ ] Implement AI-driven progress tracking
-- [ ] Create intervention suggestion system
-- [ ] Build performance prediction tools
-- [ ] Setup automated progress reports
 
-### 2.3 Content Management
-```typescript
-interface ContentSystem {
-  aiContentCreator: ContentAI;
-  resourceOptimizer: ResourceAI;
-  assessmentGenerator: AssessmentAI;
-}
-```
-**Tasks:**
-- [ ] Create AI content generation tools
-- [ ] Implement resource optimization
-- [ ] Build assessment generation system
-- [ ] Setup content effectiveness tracking
+These changes will:
+1. Restrict campus roles to only managing classes, teachers, students, timetables, and attendance
+2. Provide read-only access to inherited programs and class groups
+3. Prevent creation of new programs or class groups at the campus level
+4. Ensure classes can only be created within inherited class groups
+5. Maintain proper separation of concerns between campus and program-level management
 
-## 3. Student Portal Tasks
-
-### 3.1 AI Learning Assistant
-```typescript
-interface LearningAssistant {
-  studyPlanner: StudyAI;
-  conceptExplainer: ExplanationAI;
-  practiceGenerator: PracticeAI;
-}
-```
-**Tasks:**
-- [ ] Create personalized study planner
-- [ ] Implement concept explanation system
-- [ ] Build practice question generator
-- [ ] Setup learning path optimization
-
-### 3.2 Progress & Performance
-```typescript
-interface StudentProgress {
-  performanceAnalytics: AnalyticsAI;
-  improvementSuggestions: SuggestionAI;
-  goalTracking: GoalAI;
-}
-```
-**Tasks:**
-- [ ] Implement performance analytics
-- [ ] Create improvement suggestion system
-- [ ] Build goal tracking tools
-- [ ] Setup automated progress updates
-
-### 3.3 Interactive Learning
-```typescript
-interface InteractiveLearning {
-  aiTutor: TutorAI;
-  quizGenerator: QuizAI;
-  peerLearning: PeerMatchAI;
-}
-```
-**Tasks:**
-- [ ] Create AI tutoring system
-- [ ] Implement adaptive quiz generation
-- [ ] Build peer learning matching system
-- [ ] Setup learning effectiveness tracking
-
-## Common AI Features Across Portals
-
-### 1. Natural Language Processing
-```typescript
-interface NLPSystem {
-  queryHandler: QueryAI;
-  contentAnalyzer: AnalysisAI;
-  feedbackProcessor: FeedbackAI;
-}
-```
-**Tasks:**
-- [ ] Implement natural language query processing
-- [ ] Create content analysis system
-- [ ] Build feedback processing tools
-- [ ] Setup language understanding system
-
-### 2. Recommendation Engine
-```typescript
-interface RecommendationSystem {
-  contentRecommender: ContentAI;
-  pathOptimizer: PathAI;
-  resourceSuggester: ResourceAI;
-}
-```
-**Tasks:**
-- [ ] Create personalized recommendation system
-- [ ] Implement learning path optimization
-- [ ] Build resource suggestion tools
-- [ ] Setup effectiveness tracking
-
-### 3. Analytics & Reporting
-```typescript
-interface AIAnalytics {
-  predictiveAnalytics: PredictiveAI;
-  insightGenerator: InsightAI;
-  reportBuilder: ReportAI;
-}
-```
-**Tasks:**
-- [ ] Implement predictive analytics
-- [ ] Create automated insight generation
-- [ ] Build AI-powered reporting
-- [ ] Setup analytics dashboard
-
-Implementation Guidelines:
-1. Use TypeScript for type safety
-2. Implement proper error handling
-3. Add comprehensive logging
-4. Create necessary database migrations
-5. Write unit and integration tests
-6. Add proper documentation
-7. Follow existing coding standards
-8. Implement security best practices
-
-Integration Points:
-- Connect with existing authentication system
-- Integrate with database schema
-- Link with notification system
-- Connect with file storage system
-- Integrate with analytics platform
-
-This task list ensures AI integration across all portals while maintaining consistency with the existing system architecture and requirements.
+The implementation should focus on:
+1. Managing campus-specific entities (classes, teachers, students)
+2. Viewing and utilizing inherited structures (programs, class groups)
+3. Managing operational aspects (timetables, attendance)
+4. Maintaining proper access control and validation

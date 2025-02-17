@@ -44,11 +44,11 @@ export const DashboardFeatures: RoleFeatures = {
   "student": [
     'assignments',
     'student-progress',
-    'class-activities',
+    'class-activity-management',
     'knowledge-base'
   ],
   "parent": [
     'student-progress',
-    'class-activities'
+    'class-activity-management'
   ]
 };

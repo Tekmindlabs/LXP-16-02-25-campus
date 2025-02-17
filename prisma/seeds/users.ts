@@ -1,9 +1,18 @@
-import { PrismaClient, UserType, Status } from '@prisma/client';
+import { PrismaClient, UserType, Status, User, Campus } from '@prisma/client';
 import { DefaultRoles } from '../../src/utils/permissions';
 import bcrypt from 'bcryptjs';
+import { seedCampus } from './campus';
 
-export async function seedUsers(prisma: PrismaClient) {
+interface SeedUsersResult {
+	users: User[];
+	campus: Campus | null;
+}
+
+export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> {
 	console.log('Creating demo users...');
+
+	// Seed campus first
+	const campus = await seedCampus(prisma);
 
 	// Get roles
 	const roles = await Promise.all(
@@ -55,6 +64,39 @@ export async function seedUsers(prisma: PrismaClient) {
 		})
 	);
 
+	// Campus Admin User
+	const campusAdminPassword = await bcrypt.hash('campusadmin123', 12);
+	const campusAdminUser = await prisma.user.upsert({
+		where: { email: 'campusadmin@school.com' },
+		update: {},
+		create: {
+			name: 'Campus Admin',
+			email: 'campusadmin@school.com',
+			password: campusAdminPassword,
+			userType: UserType.ADMIN,
+			status: Status.ACTIVE,
+			phoneNumber: '+1234567888',
+			emailVerified: new Date(),
+			userRoles: {
+				create: {
+					roleId: roles.find(r => r?.name === DefaultRoles.ADMIN)?.id || ''
+				}
+			},
+			notificationSettings: {
+				create: {
+					emailNotifications: true,
+					pushNotifications: true,
+					timetableChanges: true,
+					assignmentUpdates: true,
+					gradeUpdates: true,
+					systemUpdates: true
+				}
+			}
+		}
+	});
+	users.push(campusAdminUser);
+
+
 	// Admin Users
 	const adminPassword = await bcrypt.hash('admin123', 12);
 	users.push(
@@ -105,9 +147,9 @@ export async function seedUsers(prisma: PrismaClient) {
 		}
 	];
 
-	for (const teacher of teachers) {
-		users.push(
-			await prisma.user.upsert({
+	const createdTeachers = await Promise.all(teachers.map(async (teacher) => {
+		const teacherUser = await prisma.user.upsert({
+
 				where: { email: teacher.email },
 				update: {},
 				create: {
@@ -140,9 +182,10 @@ export async function seedUsers(prisma: PrismaClient) {
 						}
 					}
 				}
-			})
-		);
-	}
+			});
+		return teacherUser;
+	}));
+	users.push(...createdTeachers);
 
 	// Students
 	const studentPassword = await bcrypt.hash('student123', 12);
@@ -161,9 +204,9 @@ export async function seedUsers(prisma: PrismaClient) {
 		}
 	];
 
-	for (const student of students) {
-		users.push(
-			await prisma.user.upsert({
+	const createdStudents = await Promise.all(students.map(async (student) => {
+		const studentUser = await prisma.user.upsert({
+
 				where: { email: student.email },
 				update: {},
 				create: {
@@ -196,9 +239,10 @@ export async function seedUsers(prisma: PrismaClient) {
 						}
 					}
 				}
-			})
-		);
-	}
+			});
+		return studentUser;
+	}));
+	users.push(...createdStudents);
 
 	// Parents
 	const parentPassword = await bcrypt.hash('parent123', 12);
@@ -217,7 +261,7 @@ export async function seedUsers(prisma: PrismaClient) {
 		}
 	];
 
-	for (const parent of parents) {
+	const createdParents = await Promise.all(parents.map(async (parent) => {
 		const child = await prisma.studentProfile.findFirst({
 			where: {
 				user: {
@@ -227,8 +271,8 @@ export async function seedUsers(prisma: PrismaClient) {
 		});
 
 		if (child) {
-			users.push(
-				await prisma.user.upsert({
+			const parentUser = await prisma.user.upsert({
+
 					where: { email: parent.email },
 					update: {},
 					create: {
@@ -264,11 +308,46 @@ export async function seedUsers(prisma: PrismaClient) {
 							}
 						}
 					}
-				})
-			);
+				});
+			return parentUser;
 		}
-	}
+		return null;
+	}));
+	users.push(...createdParents.filter(p => p !== null));
+
+	// Create campus roles separately after creating users
+	await Promise.all([
+		prisma.campusRole.create({
+			data: {
+				userId: campusAdminUser.id,
+				campusId: campus?.id || '1',
+				role: 'CAMPUS_ADMIN',
+				permissions: [
+					'MANAGE_CAMPUS_CLASSES',
+					'MANAGE_CAMPUS_TEACHERS',
+					'MANAGE_CAMPUS_STUDENTS',
+					'MANAGE_CAMPUS_TIMETABLES',
+					'MANAGE_CAMPUS_ATTENDANCE',
+					'VIEW_CAMPUS_ANALYTICS',
+					'VIEW_PROGRAMS',
+					'VIEW_CLASS_GROUPS'
+				]
+			}
+		}),
+		...createdTeachers.map(teacher => prisma.campusRole.create({
+			data: {
+				userId: teacher.id,
+				campusId: campus?.id || '1',
+				role: 'CAMPUS_TEACHER',
+				permissions: [
+					'MANAGE_CAMPUS_ATTENDANCE',
+					'VIEW_PROGRAMS',
+					'VIEW_CLASS_GROUPS'
+				]
+			}
+		}))
+	]);
 
 	console.log('Users seeded successfully');
-	return users;
+	return { users, campus };
 }

@@ -25,7 +25,11 @@ async function main() {
     // Core permissions and users first
     console.log('Seeding permissions and users...');
     await seedPermissions(prisma);
-    const users = await seedUsers(prisma);
+    const { users, campus } = await seedUsers(prisma);
+
+    if (!campus) {
+      throw new Error('Failed to create campus');
+    }
 
     // Then system settings
     console.log('Seeding system settings...');
@@ -40,7 +44,7 @@ async function main() {
     const programs = await seedPrograms(prisma, calendar.id);
     const classGroups = await seedClassGroups(prisma, programs);
     const subjects = await seedSubjects(prisma, classGroups);
-    const classes = await seedClasses(prisma, classGroups);
+    const classes = await seedClasses(prisma, classGroups, campus.id);
     const classrooms = await seedClassrooms(prisma);
 
     // Timetables and activities

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusPermission } from '@/types/campus';
+import { TRPCError } from "@trpc/server";
 
 export const campusRouter = createTRPCRouter({
 	getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -81,6 +82,60 @@ export const campusRouter = createTRPCRouter({
 				programCount,
 				classGroupCount,
 			};
+		}),
+});
+
+export const campusViewRouter = createTRPCRouter({
+	getInheritedPrograms: protectedProcedure
+		.input(z.object({ campusId: z.string() }))
+		.query(async ({ ctx, input }) => {
+			const hasPermission = await ctx.prisma.campusRole.findFirst({
+				where: {
+					userId: ctx.session.user.id,
+					campusId: input.campusId,
+					permissions: {
+						has: "VIEW_PROGRAMS",
+					},
+				},
+			});
+
+			if (!hasPermission) {
+				throw new TRPCError({ code: 'FORBIDDEN' });
+			}
+
+			return ctx.prisma.program.findMany({
+				where: {
+					calendarId: {
+						equals: input.campusId,
+					},
+				},
+
+			});
+		}),
+
+	getInheritedClassGroups: protectedProcedure
+		.input(z.object({ campusId: z.string() }))
+		.query(async ({ ctx, input }) => {
+			const hasPermission = await ctx.prisma.campusRole.findFirst({
+				where: {
+					userId: ctx.session.user.id,
+					campusId: input.campusId,
+					permissions: {
+						has: "VIEW_CLASS_GROUPS",
+					},
+				},
+			});
+
+			if (!hasPermission) {
+				throw new TRPCError({ code: 'FORBIDDEN' });
+			}
+
+			return ctx.prisma.classGroup.findMany({
+				where: {
+					calendarId: input.campusId,
+				},
+
+			});
 		}),
 });
 

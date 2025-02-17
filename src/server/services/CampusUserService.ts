@@ -1,10 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { CampusRole, CampusPermission } from "../../types/enums";
+import { CampusPermission, CampusRoleType } from "../../types/campus";
 import { TRPCError } from "@trpc/server";
 
 interface CampusRoleInfo {
 	campusId: string;
-	role: CampusRole;
+	role: CampusRoleType;
 	permissions: CampusPermission[];
 }
 
@@ -12,18 +12,34 @@ interface CampusRoleRecord {
 	id: string;
 	userId: string;
 	campusId: string;
-	role: CampusRole;
+	role: CampusRoleType;
 	permissions: CampusPermission[];
 }
 
 export class CampusUserService {
+	private readonly allowedCampusPermissions: CampusPermission[] = [
+		CampusPermission.MANAGE_CAMPUS_CLASSES,
+		CampusPermission.MANAGE_CAMPUS_TEACHERS,
+		CampusPermission.MANAGE_CAMPUS_STUDENTS,
+		CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+		CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+		CampusPermission.VIEW_CAMPUS_ANALYTICS,
+		CampusPermission.VIEW_PROGRAMS,
+		CampusPermission.VIEW_CLASS_GROUPS
+	];
+
 	constructor(private readonly db: PrismaClient) {}
 
-	async assignCampusRole(userId: string, campusId: string, role: CampusRole): Promise<void> {
+	async assignCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
 		try {
+			const defaultPermissions = this.getDefaultPermissionsForRole(role);
+			const validPermissions = defaultPermissions.filter(
+				perm => this.allowedCampusPermissions.includes(perm)
+			);
+
 			await this.db.$executeRaw`
 				INSERT INTO campus_roles (user_id, campus_id, role, permissions)
-				VALUES (${userId}, ${campusId}, ${role}, ${this.getDefaultPermissionsForRole(role)})
+				VALUES (${userId}, ${campusId}, ${role}, ${validPermissions})
 			`;
 		} catch (error) {
 			throw new TRPCError({
@@ -33,7 +49,7 @@ export class CampusUserService {
 		}
 	}
 
-	async updateCampusRole(userId: string, campusId: string, role: CampusRole): Promise<void> {
+	async updateCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
 		try {
 			await this.db.$executeRaw`
 				UPDATE campus_roles
@@ -48,7 +64,7 @@ export class CampusUserService {
 		}
 	}
 
-	async getUserRole(userId: string, campusId: string): Promise<CampusRole | null> {
+	async getUserRole(userId: string, campusId: string): Promise<CampusRoleType | null> {
 		const result = await this.db.$queryRaw<CampusRoleRecord[]>`
 			SELECT * FROM campus_roles
 			WHERE user_id = ${userId} AND campus_id = ${campusId}
@@ -86,28 +102,36 @@ export class CampusUserService {
 
 
 
-	private getDefaultPermissionsForRole(role: CampusRole): CampusPermission[] {
+	private getDefaultPermissionsForRole(role: CampusRoleType): CampusPermission[] {
 		switch (role) {
-			case CampusRole.CAMPUS_ADMIN:
-				return Object.values(CampusPermission);
-			case CampusRole.CAMPUS_MANAGER:
+			case CampusRoleType.CAMPUS_ADMIN:
 				return [
-					CampusPermission.VIEW_CAMPUS,
-					CampusPermission.MANAGE_BUILDINGS,
-					CampusPermission.MANAGE_ROOMS,
-					CampusPermission.MANAGE_CAMPUS_USERS,
-					CampusPermission.VIEW_CAMPUS_USERS
+					CampusPermission.MANAGE_CAMPUS_CLASSES,
+					CampusPermission.MANAGE_CAMPUS_TEACHERS,
+					CampusPermission.MANAGE_CAMPUS_STUDENTS,
+					CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+					CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+					CampusPermission.VIEW_CAMPUS_ANALYTICS,
+					CampusPermission.VIEW_PROGRAMS,
+					CampusPermission.VIEW_CLASS_GROUPS
 				];
-			case CampusRole.CAMPUS_TEACHER:
+			case CampusRoleType.CAMPUS_MANAGER:
 				return [
-					CampusPermission.VIEW_CAMPUS,
-					CampusPermission.VIEW_BUILDINGS,
-					CampusPermission.VIEW_ROOMS,
-					CampusPermission.MANAGE_ATTENDANCE,
-					CampusPermission.MANAGE_GRADES
+					CampusPermission.MANAGE_CAMPUS_CLASSES,
+					CampusPermission.MANAGE_CAMPUS_TEACHERS,
+					CampusPermission.MANAGE_CAMPUS_STUDENTS,
+					CampusPermission.VIEW_CAMPUS_ANALYTICS,
+					CampusPermission.VIEW_PROGRAMS,
+					CampusPermission.VIEW_CLASS_GROUPS
+				];
+			case CampusRoleType.CAMPUS_TEACHER:
+				return [
+					CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+					CampusPermission.VIEW_PROGRAMS,
+					CampusPermission.VIEW_CLASS_GROUPS
 				];
 			default:
-				return [CampusPermission.VIEW_CAMPUS];
+				return [CampusPermission.VIEW_PROGRAMS, CampusPermission.VIEW_CLASS_GROUPS];
 		}
 	}
 }
