@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { seedPermissions } from './permissions';
 import { seedUsers } from './users';
+import { seedCampus } from './campus';
 import { seedAcademicYear } from './academic-year';
 import { seedCalendar } from './calendar';
 import { seedPrograms } from './programs';
@@ -11,6 +12,8 @@ import { seedClassrooms } from './classrooms';
 import { seedTimetables } from './timetables';
 import { seedActivities } from './activities';
 import { seedAttendance } from './attendance';
+import { seedBuildings } from './buildings';
+import { seedCampusRoles } from './campus-roles';
 
 const prisma = new PrismaClient();
 
@@ -23,6 +26,15 @@ async function seedDemoData() {
 		
 		// Create users and roles
 		await seedUsers(prisma);
+
+		// Create main campus
+		const campus = await seedCampus(prisma);
+
+		// Seed buildings for the campus
+		await seedBuildings(prisma, campus.id);
+
+		// Seed campus roles
+		await seedCampusRoles(prisma, campus.id);
 		
 		// Create academic year
 		const academicYear = await seedAcademicYear(prisma);
@@ -39,8 +51,8 @@ async function seedDemoData() {
 		// Create subjects
 		const subjects = await seedSubjects(prisma, classGroups);
 		
-		// Create classes
-		const classes = await seedClasses(prisma, classGroups);
+		// Create classes with campus
+		const classes = await seedClasses(prisma, classGroups, campus.id);
 		
 		// Seed attendance data after classes are created
 		await seedAttendance(prisma);

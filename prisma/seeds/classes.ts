@@ -1,7 +1,7 @@
 import { PrismaClient, Status } from '@prisma/client';
 import { ClassGroup } from '@prisma/client';
 
-export async function seedClasses(prisma: PrismaClient, classGroups: ClassGroup[]) {
+export async function seedClasses(prisma: PrismaClient, classGroups: ClassGroup[], campusId: string) {
 	console.log('Creating demo classes...');
 
 	const classesData = [
@@ -45,7 +45,8 @@ export async function seedClasses(prisma: PrismaClient, classGroups: ClassGroup[
 					name: classData.name,
 					classGroupId: classData.classGroupId,
 					capacity: classData.capacity,
-					status: Status.ACTIVE
+					status: Status.ACTIVE,
+					campusId: campusId
 				}
 			})
 		)

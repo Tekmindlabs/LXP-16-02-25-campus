@@ -1,10 +1,12 @@
+"use client";
+
 import { FC } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { CampusForm } from "./CampusForm";
+import CampusForm from "../roles/super-admin/campus/CampusForm";
 import { BuildingManagement } from "./BuildingManagement";
 
 export const CampusManagement: FC = () => {
@@ -50,7 +52,7 @@ export const CampusManagement: FC = () => {
 			</Tabs>
 
 			{isFormOpen && (
-				<CampusForm open={isFormOpen} onClose={() => setIsFormOpen(false)} />
+				<CampusForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
 			)}
 		</div>
 	);

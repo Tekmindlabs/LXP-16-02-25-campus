@@ -24,6 +24,7 @@ export async function seedPermissions(prisma: PrismaClient) {
 		prisma.role.upsert({
 			where: { name: DefaultRoles.SUPER_ADMIN },
 			update: {
+				description: 'Super Administrator with full access',
 				permissions: {
 					deleteMany: {},
 					create: permissions.map(permission => ({
@@ -33,7 +34,7 @@ export async function seedPermissions(prisma: PrismaClient) {
 			},
 			create: {
 				name: DefaultRoles.SUPER_ADMIN,
-				description: 'Super Administrator with all permissions',
+				description: 'Super Administrator with full access',
 				permissions: {
 					create: permissions.map(permission => ({
 						permission: { connect: { id: permission.id } }
@@ -44,46 +45,56 @@ export async function seedPermissions(prisma: PrismaClient) {
 		// Admin Role
 		prisma.role.upsert({
 			where: { name: DefaultRoles.ADMIN },
-			update: {},
+			update: {
+				description: 'Institution Administrator'
+			},
 			create: {
 				name: DefaultRoles.ADMIN,
-				description: 'Administrator with elevated access'
+				description: 'Institution Administrator'
 			}
 		}),
-		// Program Coordinator Role
+		// Coordinator Role
 		prisma.role.upsert({
-			where: { name: DefaultRoles.PROGRAM_COORDINATOR },
-			update: {},
+			where: { name: DefaultRoles.COORDINATOR },
+			update: {
+				description: 'Academic Coordinator'
+			},
 			create: {
-				name: DefaultRoles.PROGRAM_COORDINATOR,
-				description: 'Program Coordinator role'
+				name: DefaultRoles.COORDINATOR,
+				description: 'Academic Coordinator'
 			}
 		}),
 		// Teacher Role
 		prisma.role.upsert({
 			where: { name: DefaultRoles.TEACHER },
-			update: {},
+			update: {
+				description: 'Teacher'
+			},
 			create: {
 				name: DefaultRoles.TEACHER,
-				description: 'Teacher role'
+				description: 'Teacher'
 			}
 		}),
 		// Student Role
 		prisma.role.upsert({
 			where: { name: DefaultRoles.STUDENT },
-			update: {},
+			update: {
+				description: 'Student'
+			},
 			create: {
 				name: DefaultRoles.STUDENT,
-				description: 'Student role'
+				description: 'Student'
 			}
 		}),
 		// Parent Role
 		prisma.role.upsert({
 			where: { name: DefaultRoles.PARENT },
-			update: {},
+			update: {
+				description: 'Parent'
+			},
 			create: {
 				name: DefaultRoles.PARENT,
-				description: 'Parent role'
+				description: 'Parent'
 			}
 		})
 	]);

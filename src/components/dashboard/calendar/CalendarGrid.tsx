@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '@/utils/api';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { startOfMonth, endOfMonth, subMonths, addMonths, format } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, addMonths, format, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarGridProps {
 	level: string;
@@ -17,7 +17,16 @@ export const CalendarGrid = ({ level, entityId }: CalendarGridProps) => {
 		endDate: endOfMonth(currentDate),
 		level,
 		entityId,
+	}, {
+		enabled: !!entityId,
 	});
+
+	const monthStart = startOfMonth(currentDate);
+	const monthEnd = endOfMonth(currentDate);
+	const calendarStart = startOfWeek(monthStart);
+	const calendarEnd = endOfWeek(monthEnd);
+
+	const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
 	return (
 		<Card>
@@ -41,7 +50,18 @@ export const CalendarGrid = ({ level, entityId }: CalendarGridProps) => {
 							{day}
 						</div>
 					))}
-					{/* Calendar days implementation will go here */}
+					{days.map((day) => (
+						<div key={day.toISOString()} className="p-2 text-center border">
+							{format(day, 'd')}
+							{events?.map((event) => (
+								event.startDate.toDateString() === day.toDateString() && (
+									<div key={event.id} className="text-xs mt-1 bg-blue-100 p-1 rounded">
+										{event.title}
+									</div>
+								)
+							))}
+						</div>
+					))}
 				</div>
 			</CardContent>
 		</Card>

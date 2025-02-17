@@ -1,7 +1,32 @@
-import { Status } from "@prisma/client";
+import { Status, Campus as PrismaCampus, Program, ClassGroup } from "@prisma/client";
 import { TeacherProfile } from "./teacher";
 import { StudentProfile } from "./student";
 import { Class } from "./class";
+
+export interface CampusContextType {
+	currentCampus: PrismaCampus | null;
+	setCurrentCampus: (campus: PrismaCampus | null) => void;
+	programs: Program[];
+	classGroups: ClassGroup[];
+	refreshData: () => void;
+}
+
+export enum CampusPermission {
+	MANAGE_USERS = "MANAGE_USERS",
+	MANAGE_PROGRAMS = "MANAGE_PROGRAMS",
+	MANAGE_CLASSES = "MANAGE_CLASSES",
+	MANAGE_CLASSROOMS = "MANAGE_CLASSROOMS",
+	VIEW_ANALYTICS = "VIEW_ANALYTICS",
+	MANAGE_SETTINGS = "MANAGE_SETTINGS"
+}
+
+export interface CampusRole {
+	id: string;
+	userId: string;
+	campusId: string;
+	role: string;
+	permissions: string[];
+}
 
 export interface PerformanceMetrics {
 	id: string;
@@ -115,7 +140,7 @@ export interface Room {
 	resources?: Record<string, any>;
 }
 
-export interface CampusClass extends Class {
+export interface CampusClass extends Omit<Class, 'room' | 'campus' | 'building'> {
 	campus: {
 		id: string;
 		name: string;
@@ -128,6 +153,7 @@ export interface CampusClass extends Class {
 		id: string;
 		number: string;
 		type: RoomType;
+		capacity: number;
 	};
 	campusTeachers: CampusTeacher[];
 	campusStudents: CampusStudent[];
