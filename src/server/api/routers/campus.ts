@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusPermission, CampusRoleType } from '@/types/campus';
 import { TRPCError } from "@trpc/server";
+import { CampusUserService } from "../../services/CampusUserService";
 
 export const campusRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -46,27 +47,16 @@ export const campusRouter = createTRPCRouter({
 
 				console.log('Campus created:', campus.id);
 
-				// Then create the role
-				const role = await ctx.prisma.campusRole.create({
-					data: {
-						userId: user.id,
-						campusId: campus.id,
-						role: CampusRoleType.CAMPUS_ADMIN,
-						permissions: [
-							CampusPermission.MANAGE_CAMPUS_CLASSES,
-							CampusPermission.MANAGE_CAMPUS_TEACHERS,
-							CampusPermission.MANAGE_CAMPUS_STUDENTS,
-							CampusPermission.MANAGE_CAMPUS_TIMETABLES,
-							CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
-							CampusPermission.VIEW_CAMPUS_ANALYTICS,
-							CampusPermission.VIEW_PROGRAMS,
-							CampusPermission.VIEW_CLASS_GROUPS
-						],
+				// Use CampusUserService to assign role
+				const campusUserService = new CampusUserService(ctx.prisma);
+				await campusUserService.assignCampusRole(
+					user.id,
+					campus.id,
+					CampusRoleType.CAMPUS_ADMIN
+				);
 
-					},
-				});
+				console.log('Campus role assigned');
 
-				console.log('Campus role created:', role.id);
 
 				return campus;
 			} catch (error) {
