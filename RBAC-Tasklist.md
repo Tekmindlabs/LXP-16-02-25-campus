@@ -22,6 +22,7 @@ Component Reusability:
 Design the component to be reusable across different dashboards or admin panels.
 Consider creating separate components for role listing, role creation/editing form, and API integration logic.
 Shadcn UI Components: Table, Select, Button, Form, Input, Textarea, RadioGroup, Toast
+
 Task 2: Dynamic Permission Matrix UI (src/components/ui/DynamicPermissionMatrix.tsx)
 Description: Develop a reusable React component that provides a dynamic matrix UI for assigning permissions to roles.
 Instructions:
@@ -41,6 +42,7 @@ Component Reusability:
 Design the component to be reusable for different types of resources and roles.
 Consider creating separate components for matrix rendering, permission assignment logic, and API integration.
 Shadcn UI Components: Table, Checkbox, Switch, Input, Select, Accordion, Toast
+
 Task 3: Role Template System
 Description: Implement a system for role templates to predefine common role configurations.
 Instructions:
@@ -57,6 +59,7 @@ Provide options to override template settings and add/remove permissions.
 Component Reusability:
 Design the template loading and application logic to be reusable for different role types.
 Shadcn UI Components: Select, Form, Input, Textarea, Checkbox
+
 Task 4: Campus Permission Scope
 Description: Implement a mechanism to scope permissions to specific campuses.
 Instructions:
@@ -70,6 +73,7 @@ UI Integration:
 Integrate campus scope definition into the DynamicPermissionMatrix component.
 Use Shadcn UI's Select component to allow users to choose a campus for each permission.
 Shadcn UI Components: Select
+
 Task 5: Multi-Campus Role Assignment
 Description: Enable assigning users to roles across multiple campuses.
 Instructions:
@@ -83,6 +87,7 @@ Backend Logic Update:
 Update the backend logic to handle user roles in multi-campus scenarios.
 Ensure that users have access to resources only within their assigned campuses.
 Shadcn UI Components: Select
+
 Task 6: Permission Inheritance
 Description: Implement permission inheritance to create hierarchical roles.
 Instructions:
@@ -95,6 +100,7 @@ Recursively retrieve permissions from parent roles.
 UI Visualization:
 Update the RoleHierarchyVisualization component to visualize role inheritance.
 Display inherited permissions for each role.
+
 Task 7: Role Hierarchy Visualization (src/components/dashboard/RoleHierarchyVisualization.tsx)
 Description: Create a UI component to visualize the role hierarchy and permission inheritance.
 Instructions:
@@ -107,6 +113,7 @@ Use tooltips or expandable sections to show the source of each permission.
 Interactive Elements:
 Implement interactive elements to explore role details.
 Allow users to expand/collapse roles and view their permissions.
+
 Task 8: Audit Trail Implementation
 Description: Implement an audit trail to track changes to roles and permissions.
 Instructions:
@@ -119,6 +126,7 @@ Create audit log entries whenever a role or permission is created, updated, or d
 UI Integration:
 Integrate audit log viewing into the UnifiedRoleManagement component.
 Use Shadcn UI's Table component to display audit logs.
+
 Task 9: Documentation Updates
 Description: Update project documentation (README.md, docs/rbac.md) to reflect the new unified RBAC system.
 Instructions:
@@ -128,6 +136,7 @@ Usage Examples:
 Provide usage examples and best practices.
 API Documentation:
 Update API documentation related to RBAC.
+
 Task 10: Testing Strategy
 Description: Define a comprehensive testing strategy for the unified RBAC system.
 Instructions:
@@ -139,5 +148,3 @@ End-to-End Tests:
 Write end-to-end tests for user workflows and permission enforcement.
 Test Cases:
 Create test cases for different role types, permission scopes, and inheritance scenarios.
-Aide
-The user has confirmed that the rbactasklist.md file has been created. I have completed the task of creating a rbactasklist.md file with detailed tasks based on the rbacdevplan.md file, with clear instructions, component reusability in mind, and Shadcn UI usage. I have created the rbactasklist.md file with detailed tasks based on the rbacdevplan.md file. Each task includes clear instructions, considerations for component reusability, and guidance on using Shadcn UI components. Running command: no command provided
