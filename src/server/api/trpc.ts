@@ -1,4 +1,5 @@
-import { initTRPC, TRPCError } from "@trpc/server";
+import { initTRPC, TRPCError, type inferAsyncReturnType } from "@trpc/server";
+import { type CreateNextContextOptions } from '@trpc/server/adapters/next';
 import superjson from "superjson";
 import { ZodError } from "zod";
 import { Permission, DefaultRoles } from "@/utils/permissions";
@@ -6,6 +7,8 @@ import { getServerAuthSession } from "@/server/auth";
 import { prisma } from "@/server/db";
 import type { Session } from "next-auth";
 import { type DefaultSession } from "next-auth";
+
+export const isServer = () => typeof window === 'undefined';
 
 // Extend Session type to include roles
 declare module "next-auth" {
@@ -30,6 +33,36 @@ export type Context = {
   session: Session | null;
 };
 
+type TRPCShape = {
+  data: {
+    zodError?: ZodError | null;
+    code?: string;
+    message?: string;
+  };
+};
+
+type TRPCNext = {
+  ctx: Context;
+};
+
+interface RolePermission {
+  permission: {
+    name: string;
+  };
+}
+
+interface Role {
+  name: string;
+  permissions: RolePermission[];
+}
+
+interface UserRole {
+  role: Role;
+}
+
+interface UserWithRoles {
+  userRoles: UserRole[];
+}
 
 
 export const createTRPCContext = async () => {
@@ -59,7 +92,8 @@ export const createTRPCContext = async () => {
     
     const assignedRoles = userWithRoles?.userRoles?.map(ur => ur.role.name) || [];
     const userPermissions = userWithRoles?.userRoles.flatMap(
-      userRole => userRole.role.permissions.map(rp => rp.permission.name)
+        (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) => 
+        userRole.role.permissions.map((rp) => rp.permission.name)
     ) || [];
 
     // If user has super-admin role, keep it exclusive and include all permissions
@@ -90,7 +124,7 @@ export const createTRPCContext = async () => {
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
+  errorFormatter({ shape, error }: { shape: TRPCShape; error: { cause?: unknown; code?: string; message: string } }) {
     console.error('TRPC Error:', error);
     return {
       ...shape,
@@ -102,12 +136,13 @@ const t = initTRPC.context<Context>().create({
       },
     };
   },
+  isServer: isServer(),
 });
 
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
-const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
+const enforceUserIsAuthed = t.middleware(({ ctx, next }: { ctx: Context; next: (opts: { ctx: Context }) => Promise<any> }) => {
   if (!ctx.session || !ctx.session.user) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
@@ -116,6 +151,7 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
   }
   return next({
     ctx: {
+      prisma: ctx.prisma,
       session: { ...ctx.session, user: ctx.session.user },
     },
   });
@@ -125,7 +161,7 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 
 const enforceUserHasPermission = (requiredPermission: Permission) =>
-  t.middleware(async ({ ctx, next }) => {
+  t.middleware(async ({ ctx, next }: { ctx: Context; next: (opts: { ctx: Context }) => Promise<any> }) => {
     if (!ctx.session?.user) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
@@ -155,7 +191,7 @@ const enforceUserHasPermission = (requiredPermission: Permission) =>
 
     // Check if user has super-admin role
     const isSuperAdmin = userWithRoles?.userRoles.some(
-      userRole => userRole.role.name === DefaultRoles.SUPER_ADMIN
+      (userRole: UserRole) => userRole.role.name === DefaultRoles.SUPER_ADMIN
     );
 
     // Super admin has all permissions
@@ -170,7 +206,7 @@ const enforceUserHasPermission = (requiredPermission: Permission) =>
             user: {
               ...ctx.session.user,
               roles: [DefaultRoles.SUPER_ADMIN],
-              permissions: allPermissions.map(p => p.name)
+                permissions: allPermissions.map((p: { name: string }) => p.name)
             }
           }
         }
@@ -179,12 +215,12 @@ const enforceUserHasPermission = (requiredPermission: Permission) =>
 
     // For non-super-admin users, check specific permissions
     const userPermissions = userWithRoles?.userRoles.flatMap(
-      userRole => userRole.role.permissions.map(rp => rp.permission.name)
+      (userRole: UserRole) => userRole.role.permissions.map((rp: RolePermission) => rp.permission.name)
     ) || [];
 
     console.log('Permission check:', {
       requiredPermission,
-      userRoles: userWithRoles?.userRoles.map(ur => ur.role.name),
+          userRoles: userWithRoles?.userRoles.map((ur: UserRole) => ur.role.name),
       isSuperAdmin,
       userPermissions,
       hasPermission: userPermissions.includes(requiredPermission)
