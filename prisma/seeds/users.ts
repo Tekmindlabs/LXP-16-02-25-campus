@@ -13,6 +13,10 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 
 	// Seed campus first
 	const campus = await seedCampus(prisma);
+	if (!campus) {
+		console.error("Failed to seed campus. Aborting user seeding.");
+		return { users: [], campus: null };
+	}
 
 	// Get roles
 	const roles = await Promise.all(
@@ -22,7 +26,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 	);
 
 	// Create users with profiles
-	const users = [];
+	let users: (User | null)[] = [];
 
 	// Super Admin User
 	const superAdminPassword = await bcrypt.hash('superadmin123', 12);
@@ -33,7 +37,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 				userRoles: {
 					deleteMany: {},
 					create: {
-						roleId: roles.find(r => r?.name === DefaultRoles.SUPER_ADMIN)?.id || ''
+						roleId: (await roles.find(r => r?.name === DefaultRoles.SUPER_ADMIN))?.id || ''
 					}
 				}
 			},
@@ -313,14 +317,20 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 		}
 		return null;
 	}));
-	users.push(...createdParents.filter(p => p !== null));
+	// Filter out null values from all user arrays before returning
+	const validUsers = [
+		...users.filter((user): user is User => user !== null),
+		...createdTeachers.filter((user): user is User => user !== null),
+		...createdStudents.filter((user): user is User => user !== null),
+		...createdParents.filter((user): user is User => user !== null)
+	];
 
 	// Create campus roles separately after creating users
 	await Promise.all([
-		prisma.campusRole.create({
+		await prisma.campusRole.create({
 			data: {
 				userId: campusAdminUser.id,
-				campusId: campus?.id || '1',
+				campusId: campus.id,
 				role: 'CAMPUS_ADMIN',
 				permissions: [
 					'MANAGE_CAMPUS_CLASSES',
@@ -334,10 +344,10 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 				]
 			}
 		}),
-		...createdTeachers.map(teacher => prisma.campusRole.create({
+		...createdTeachers.map(async (teacher) => await prisma.campusRole.create({
 			data: {
 				userId: teacher.id,
-				campusId: campus?.id || '1',
+				campusId: campus.id,
 				role: 'CAMPUS_TEACHER',
 				permissions: [
 					'MANAGE_CAMPUS_ATTENDANCE',
@@ -349,5 +359,5 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 	]);
 
 	console.log('Users seeded successfully');
-	return { users, campus };
+	return { users: validUsers, campus };
 }

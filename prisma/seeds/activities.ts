@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, ActivityType, ActivityStatus } from '@prisma/client';
 import { Class, Subject, ClassGroup } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -12,8 +12,8 @@ interface ActivityParams {
 interface ActivityInput {
 	title: string;
 	description: string | null;
-	type: string;
-	status: string;
+	type: ActivityType;
+	status: ActivityStatus;
 	deadline: Date | null;
 	classId?: string | null;
 	classGroupId?: string | null;
@@ -49,8 +49,8 @@ export async function seedActivities(prisma: PrismaClient, params?: ActivityPara
 			{
 				title: 'Mathematics Quiz 1',
 				description: 'Basic arithmetic operations quiz',
-				type: 'QUIZ_MULTIPLE_CHOICE',
-				status: 'PUBLISHED',
+				type: ActivityType.QUIZ_MULTIPLE_CHOICE,
+				status: ActivityStatus.PUBLISHED,
 				classId: class_.id,
 				subjectId: subject.id,
 				classGroupId: classGroup.id,
@@ -111,8 +111,8 @@ async function seedActivitiesWithParams(prisma: PrismaClient, params: ActivityPa
 			{
 				title: `Math Quiz - ${className}`,
 				description: 'Multiple choice math quiz',
-				type: 'QUIZ_MULTIPLE_CHOICE',
-				status: 'PUBLISHED',
+				type: ActivityType.QUIZ_MULTIPLE_CHOICE,
+				status: ActivityStatus.PUBLISHED,
 				deadline: new Date('2024-09-15'),
 				classGroupId: class_.classGroupId,
 				subjectId: params.subjects[0]?.id ?? '',
