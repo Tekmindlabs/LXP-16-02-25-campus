@@ -3,6 +3,42 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Status, AssessmentSystemType, TermSystemType } from "@prisma/client";
+import { JsonValue } from "@prisma/client/runtime/library";
+
+type ClassGroup = {
+	id: string;
+	name: string;
+	description: string | null;
+	status: Status;
+	programId: string;
+	calendarId: string;
+	createdAt: Date;
+	updatedAt: Date;
+	program: {
+		id: string;
+		name: string | null;
+		description: string | null;
+		status: Status;
+		createdAt: Date;
+		updatedAt: Date;
+		calendarId: string;
+		termSystem: TermSystemType;
+		coordinatorId: string | null;
+		assessmentSystem: {
+			description: string | null;
+			type: AssessmentSystemType;
+			id: string;
+			createdAt: Date;
+			updatedAt: Date;
+			name: string;
+			programId: string;
+			cgpaConfig: JsonValue | null;
+		} | null;
+		termStructures: any[];
+	};
+};
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { api } from "@/utils/api";
 import { ClassGroupList } from "./ClassGroupList";
@@ -65,7 +101,7 @@ export const ClassGroupManagement = () => {
 	const isLoading = groupsLoading || programsLoading || subjectsLoading;
 	const totalGroups = classGroups?.length || 0;
 	const activeGroups = classGroups?.filter(g => g.status === 'ACTIVE').length || 0;
-	const totalClasses = classGroups?.reduce((acc, group) => acc + group.classes.length, 0) || 0;
+	const totalClasses = 0; // TODO: Implement when class data is available
 
 
 	return (
@@ -79,18 +115,17 @@ export const ClassGroupManagement = () => {
 							Create Class Group
 						</Button>
 					</DialogTrigger>
-					<DialogContent size="wide">
+					<DialogContent className="max-w-4xl">
 						<DialogHeader>
 							<DialogTitle>Create New Class Group</DialogTitle>
 						</DialogHeader>
 						<ClassGroupForm 
-							programs={programs?.programs.map(p => ({
-								id: p.id,
-								name: p.name || 'Unnamed Program'
-							})) || []}
+							programs={programs?.programs || []}
+							selectedClassGroup={undefined}
 							subjects={subjects || []}
 							onSuccess={handleSuccess}
 						/>
+
 					</DialogContent>
 				</Dialog>
 			</div>
@@ -135,7 +170,7 @@ export const ClassGroupManagement = () => {
 					</CardHeader>
 					<CardContent>
 						<div className="text-2xl font-bold">
-							{classGroups?.reduce((acc, group) => acc + group.subjects.length, 0) || 0}
+							{0} {/* TODO: Implement when subject data is available */}
 						</div>
 					</CardContent>
 				</Card>
@@ -153,40 +188,31 @@ export const ClassGroupManagement = () => {
 					) : (
 						<>
 							<ClassGroupList 
-								classGroups={classGroups?.map(group => ({
+								classGroups={(classGroups || []).map(group => ({
 									...group,
 									program: {
 										...group.program,
-										name: group.program.name || 'Unnamed Program'
+										name: group.program.name ?? 'Unnamed Program',
 									}
-								})) || []} 
+								}))}
 								onEdit={(id) => setSelectedGroupId(id)}
 								onView={handleViewDetails}
 							/>
 							{selectedGroupId && (
 								<Dialog open={!!selectedGroupId} onOpenChange={(open) => !open && setSelectedGroupId(null)}>
-									<DialogContent size="wide">
+									<DialogContent className="max-w-4xl">
 										<DialogHeader>
 											<DialogTitle>Edit Class Group</DialogTitle>
 										</DialogHeader>
 										<ClassGroupForm 
-											programs={programs?.programs.map(p => ({
-												id: p.id,
-												name: p.name || 'Unnamed Program'
-											})) || []}
-											selectedClassGroup={classGroups?.find(g => g.id === selectedGroupId) ? {
-												id: classGroups.find(g => g.id === selectedGroupId)!.id,
-												name: classGroups.find(g => g.id === selectedGroupId)!.name,
-												description: classGroups.find(g => g.id === selectedGroupId)!.description,
-												programId: classGroups.find(g => g.id === selectedGroupId)!.programId,
-												status: classGroups.find(g => g.id === selectedGroupId)!.status,
-												calendarId: classGroups.find(g => g.id === selectedGroupId)!.calendarId,
-												subjects: classGroups.find(g => g.id === selectedGroupId)!.subjects
-											} : undefined}
+											programs={programs?.programs || []}
+											selectedClassGroup={classGroups?.find(g => g.id === selectedGroupId)}
 											subjects={subjects || []}
 											onSuccess={handleSuccess}
 										/>
+
 									</DialogContent>
+
 								</Dialog>
 							)}
 						</>

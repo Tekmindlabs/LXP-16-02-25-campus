@@ -2,18 +2,18 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/utils/api";
+import { api } from "@/trpc/react";
 import { ClassGroup, Status } from "@prisma/client";
-import { Edit2, Trash2, Users, BookOpen, Eye } from "lucide-react";
+import { Edit2, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ClassGroupListProps {
 	classGroups: (ClassGroup & {
 		program: {
-			name: string | null;
+			name: string;
+			assessmentSystem: any;
+			termStructures: any[];
 		};
-		classes: any[];
-		subjects: any[];
 	})[];
 	onEdit: (id: string) => void;
 	onView: (id: string) => void;
@@ -64,16 +64,6 @@ export const ClassGroupList = ({ classGroups, onEdit, onView }: ClassGroupListPr
 										{group.description}
 									</p>
 								)}
-							</div>
-							<div className="grid grid-cols-2 gap-4 p-4 text-sm">
-								<div className="flex items-center gap-2">
-									<Users className="h-4 w-4 text-muted-foreground" />
-									<span>Classes: {group.classes.length}</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<BookOpen className="h-4 w-4 text-muted-foreground" />
-									<span>Subjects: {group.subjects.length}</span>
-								</div>
 							</div>
 							<div className="border-t p-4">
 								<div className="flex justify-end space-x-2">

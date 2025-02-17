@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Status, TeacherType } from "@prisma/client";
+import { Status } from "@prisma/client";
 import { TRPCClientError } from '@trpc/client';
+import type { inferRouterError } from '@trpc/server';
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -11,8 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useToast } from "@/hooks/use-toast";
-
 import { api } from "@/trpc/react";
+import { TeacherType } from "@/server/api/routers/teacher";
 
 
 const formSchema = z.object({
@@ -31,9 +32,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface TeacherFormProps {
-	isCreate: boolean;
 	onClose: () => void;
 	selectedTeacher?: {
+
 		id: string;
 		name: string;
 		email: string;
@@ -45,6 +46,7 @@ interface TeacherFormProps {
 			availability: string | null;
 			subjects: { subject: { id: string } }[];
 			classes: { class: { id: string } }[];
+			campuses?: { id: string; name: string }[]; // Make campuses optional
 		};
 	};
 	subjects: { id: string; name: string }[];
@@ -52,7 +54,7 @@ interface TeacherFormProps {
 	campuses: { id: string; name: string }[];
 }
 
-export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, classes }: TeacherFormProps) => {
+export const TeacherForm = ({ onClose, selectedTeacher, subjects, classes, campuses }: TeacherFormProps) => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const utils = api.useContext();
 	const { toast } = useToast();
@@ -102,9 +104,9 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 		}
 	}, [selectedTeacher, form]);
 
-	const createTeacher = api.teachers.create.useMutation({
+	const createTeacher = api.teacher.createTeacher.useMutation({
 		onSuccess: () => {
-			utils.teachers.list.invalidate();
+			utils.teacher.searchTeachers.invalidate();
 			form.reset();
 			onClose();
 			toast({
@@ -112,7 +114,7 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 				description: "Teacher created successfully",
 			});
 		},
-		onError: (error: TRPCClientError<any>) => {
+		onError: (error) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -121,16 +123,16 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 		},
 	});
 
-	const updateTeacher = api.teachers.update.useMutation({
+	const updateTeacher = api.teacher.updateTeacher.useMutation({
 		onSuccess: () => {
-			utils.teachers.list.invalidate();
+			utils.teacher.searchTeachers.invalidate();
 			onClose();
 			toast({
 				title: "Success",
 				description: "Teacher updated successfully",
 			});
 		},
-		onError: (error: TRPCClientError<any>) => {
+		onError: (error) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -142,13 +144,35 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 	const onSubmit = async (values: FormValues) => {
 		setIsSubmitting(true);
 		try {
+			const { status, campusIds, ...inputValues } = values;
+			const teacherTypeValue = inputValues.teacherType === 'CLASS' ? TeacherType.CLASS : TeacherType.SUBJECT;
+			
 			if (selectedTeacher) {
 				await updateTeacher.mutateAsync({
 					id: selectedTeacher.id,
-					...values,
+					...inputValues,
+					teacherType: teacherTypeValue,
 				});
 			} else {
-				await createTeacher.mutateAsync(values);
+				await createTeacher.mutateAsync({
+					...inputValues,
+					teacherType: teacherTypeValue,
+				});
+			}
+		} catch (error) {
+			if (error instanceof TRPCClientError) {
+				toast({
+					title: "Error",
+					description: error.message,
+					variant: "destructive",
+				});
+			} else {
+				console.error("Unexpected error:", error);
+				toast({
+					title: "Error",
+					description: "An unexpected error occurred.",
+					variant: "destructive",
+				});
 			}
 		} finally {
 			setIsSubmitting(false);
@@ -354,7 +378,7 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 			<FormLabel>Assigned Campuses</FormLabel>
 			<MultiSelect
 				value={field.value}
-				options={props.campuses.map((campus: { id: string; name: string }) => ({
+				options={campuses.map((campus: { id: string; name: string }) => ({
 					value: campus.id,
 					label: campus.name
 				}))}

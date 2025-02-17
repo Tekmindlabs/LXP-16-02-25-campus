@@ -22,14 +22,19 @@ export function Providers({
     defaultOptions: {
       queries: {
         retry: 3,
-        refetchOnWindowFocus: false,
-        staleTime: 0, // Always fetch fresh data
-        gcTime: 0, // Don't cache
-        },
-        mutations: {
+        refetchOnWindowFocus: true,
+        staleTime: 1000 * 60, // Data is fresh for 1 minute
+        gcTime: 1000 * 60 * 5, // Cache for 5 minutes
+        refetchOnMount: true,
+      },
+      mutations: {
         retry: 2,
         onError: (error) => {
           console.error('Mutation error:', error);
+        },
+        onSuccess: () => {
+          // Invalidate and refetch all queries after any mutation
+          void queryClient.invalidateQueries();
         },
       },
     },

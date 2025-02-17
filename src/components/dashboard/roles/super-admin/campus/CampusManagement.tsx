@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useState } from "react";
+import { type FC, useState, useEffect } from "react";
 import { api } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,12 +13,27 @@ type Campus = RouterOutputs["campus"]["getAll"][number];
 
 interface CampusManagementProps {}
 
-const CampusManagement: FC<CampusManagementProps> = () => {
+export const CampusManagement: FC<CampusManagementProps> = () => {
 	const router = useRouter();
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [selectedCampusId, setSelectedCampusId] = useState<string | null>(null);
+	const trpc = api.useUtils();
 
-	const { data: campuses, isLoading } = api.campus.getAll.useQuery();
+	const { data: campuses, isLoading, refetch } = api.campus.getAll.useQuery(undefined, {
+		refetchOnWindowFocus: true,
+		refetchOnMount: true,
+	});
+
+	useEffect(() => {
+		if (campuses) {
+			console.log("Campuses fetched successfully:", campuses);
+		}
+	}, [campuses]);
+
+
+	useEffect(() => {
+		console.log("CampusManagement component rendered");
+	}, []);
 
 	const handleEdit = (id: string) => {
 		setSelectedCampusId(id);
@@ -30,9 +45,13 @@ const CampusManagement: FC<CampusManagementProps> = () => {
 		setIsFormOpen(true);
 	};
 
-	const handleCloseForm = () => {
+	const handleCloseForm = async () => {
 		setIsFormOpen(false);
 		setSelectedCampusId(null);
+		console.log('Invalidating queries...');
+		await trpc.campus.getAll.invalidate();
+		console.log('Refetching data...');
+		await refetch();
 	};
 
 	const handleViewCampus = (id: string) => {
@@ -48,15 +67,16 @@ const CampusManagement: FC<CampusManagementProps> = () => {
 			<Card>
 				<CardHeader>
 					<div className="flex items-center justify-between">
-						<CardTitle>Campus Management</CardTitle>
+						<CardTitle>Campus Management ({campuses?.length ?? 0} campuses)</CardTitle>
 						<Button onClick={handleCreate}>
 							Create New Campus
 						</Button>
 					</div>
 				</CardHeader>
 				<CardContent>
-					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-						{campuses?.map((campus: Campus) => (
+					{campuses && campuses.length > 0 ? (
+						<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+							{campuses.map((campus: Campus) => (
 							<Card 
 								key={campus.id} 
 								className="cursor-pointer hover:bg-accent"
@@ -96,16 +116,22 @@ const CampusManagement: FC<CampusManagementProps> = () => {
 							</Card>
 						))}
 					</div>
-				</CardContent>
-			</Card>
+				) : (
+					<div className="text-center py-8 text-muted-foreground">
+						No campuses found. Click "Create New Campus" to add one.
+					</div>
+				)}
+			</CardContent>
+		</Card>
 
-			<CampusForm 
-				isOpen={isFormOpen}
-				onClose={handleCloseForm}
-				campusId={selectedCampusId}
-			/>
-		</div>
-	);
+		<CampusForm 
+			isOpen={isFormOpen}
+			onClose={handleCloseForm}
+			campusId={selectedCampusId}
+		/>
+	</div>
+  );
 };
 
 export default CampusManagement;
+

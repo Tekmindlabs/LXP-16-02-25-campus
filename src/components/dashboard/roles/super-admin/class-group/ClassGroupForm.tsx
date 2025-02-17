@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,13 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSelect } from "@/components/ui/multi-select";
 import { api } from "@/utils/api";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ErrorAlert } from "@/components/ui/error-alert";
-import { Status, CalendarType } from "@prisma/client";
+import { Alert } from "@/components/ui/alert";
+import { Form } from "@/components/ui/form";
+import { JsonValue } from "@prisma/client/runtime/library";
+import { Status, CalendarType, Visibility } from "@prisma/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface Program {
 	id: string;
-	name: string;
+	name: string | null;
+	calendar: {
+		metadata: JsonValue;
+		name: string;
+		status: Status;
+		type: CalendarType;
+		description: string | null;
+		id: string;
+		createdAt: Date;
+		updatedAt: Date;
+		visibility: Visibility;
+	};
 }
 
 interface Subject {
@@ -36,7 +49,6 @@ interface FormData {
 	name: string;
 	description?: string;
 	programId: string;
-	campusId: string;
 	status: Status;
 	calendar: {
 		id: string;
@@ -45,34 +57,37 @@ interface FormData {
 	subjectIds: string[];
 }
 
+
 interface Props {
 	selectedClassGroup?: {
 		id: string;
 		name: string;
 		description: string | null;
 		programId: string;
-		campusId: string;
 		status: Status;
 		calendarId?: string;
 		subjects?: Subject[];
 	};
+	programs: Program[];
+	subjects: Subject[];
 	onSuccess?: () => void;
 }
 
 
-export const ClassGroupForm = ({ selectedClassGroup, onSuccess }: Props) => {
+export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSuccess }: Props) => {
 
-	const [formData, setFormData] = useState<FormData>({
-		name: selectedClassGroup?.name || "",
-		description: selectedClassGroup?.description || undefined,
-		programId: selectedClassGroup?.programId || "",
-		campusId: selectedClassGroup?.campusId || "",
-		status: selectedClassGroup?.status || Status.ACTIVE,
-		calendar: {
-			id: selectedClassGroup?.calendarId || "",
-			inheritSettings: false
-		},
-		subjectIds: selectedClassGroup?.subjects?.map(s => s.id) || []
+	const form = useForm<FormData>({
+		defaultValues: {
+			name: selectedClassGroup?.name || "",
+			description: selectedClassGroup?.description || undefined,
+			programId: selectedClassGroup?.programId || "",
+			status: selectedClassGroup?.status || Status.ACTIVE,
+			calendar: {
+				id: selectedClassGroup?.calendarId || "",
+				inheritSettings: false
+			},
+			subjectIds: selectedClassGroup?.subjects?.map(s => s.id) || []
+		}
 	});
 
 	const { 
@@ -82,42 +97,30 @@ export const ClassGroupForm = ({ selectedClassGroup, onSuccess }: Props) => {
 	} = api.calendar.getAll.useQuery();
 	
 	const { 
-		data: subjects, 
-		isLoading: subjectsLoading, 
-		error: subjectsError 
-	} = api.subject.searchSubjects.useQuery({ search: "", status: Status.ACTIVE });
-	
-	const { 
 		data: campuses, 
 		isLoading: campusesLoading, 
 		error: campusesError 
 	} = api.campus.getAll.useQuery();
 
-	const {
-		data: programs,
-		isLoading: programsLoading,
-		error: programsError
-	} = api.program.getAll.useQuery({});
+	const loading = calendarsLoading || campusesLoading;
+	const error = calendarsError || campusesError;
 
-	const loading = calendarsLoading || subjectsLoading || campusesLoading || programsLoading;
-	const error = calendarsError || subjectsError || campusesError || programsError;
 
 	if (loading) {
 		return <LoadingSpinner />;
 	}
 
 	if (error) {
-		return <ErrorAlert message={error.message || 'An error occurred while loading data'} />;
+		return <Alert variant="destructive">{error.message || 'An error occurred while loading data'}</Alert>;
 	}
 
 
-	if (!programs || !campuses || !subjects || !calendars) {
-		return <ErrorAlert message="Required data is missing" />;
+	if (!campuses || !calendars) {
+		return <Alert variant="destructive">Required data is missing</Alert>;
 	}
 
-	const handleCampusChange = (value: string) => {
-		setFormData({ ...formData, campusId: value });
-	};
+
+
 
 
 	const utils = api.useContext();
@@ -161,149 +164,131 @@ export const ClassGroupForm = ({ selectedClassGroup, onSuccess }: Props) => {
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		const formValues = form.getValues();
+		const selectedCalendar = calendars?.find(c => c.id === formValues.calendar.id);
+
+		if (!selectedCalendar) {
+			toast({
+				title: "Error",
+				description: "Selected calendar not found",
+				variant: "destructive",
+			});
+			return;
+		}
+
 		if (selectedClassGroup) {
 			updateMutation.mutate({
 				id: selectedClassGroup.id,
-				name: formData.name,
-				description: formData.description,
-				programId: formData.programId,
-				campusId: formData.campusId,
-				status: formData.status,
+				name: formValues.name,
+				description: formValues.description,
+				programId: formValues.programId,
+				status: formValues.status,
 				calendar: {
-					id: formData.calendar.id,
-					inheritSettings: formData.calendar.inheritSettings
+					id: selectedCalendar.id,
+					name: selectedCalendar.name,
+					startDate: selectedCalendar.startDate,
+					endDate: selectedCalendar.endDate
 				},
-				subjectIds: formData.subjectIds
+				subjectIds: formValues.subjectIds
 			});
-		} else {
-			if (!formData.campusId) {
-				toast({
-					title: "Error",
-					description: "Campus is required",
-					variant: "destructive",
-				});
-				return;
-			}
 
+		} else {
 			createMutation.mutate({
-				name: formData.name,
-				description: formData.description,
-				programId: formData.programId,
-				campusId: formData.campusId,
-				status: formData.status,
+
+				name: formValues.name,
+				description: formValues.description,
+				programId: formValues.programId,
+				status: formValues.status,
 				calendar: {
-					id: formData.calendar.id,
-					inheritSettings: formData.calendar.inheritSettings
+					id: selectedCalendar.id,
+					name: selectedCalendar.name,
+					startDate: selectedCalendar.startDate,
+					endDate: selectedCalendar.endDate
 				},
-				subjectIds: formData.subjectIds
+				subjectIds: formValues.subjectIds
 			});
+
 		}
 	};
 
 
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4">
-			<div>
-				<Label htmlFor="name">Name</Label>
-				<Input
-					id="name"
-					value={formData.name}
-					onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-					required
-				/>
-			</div>
+		<Form {...form}>
+			<form onSubmit={handleSubmit} className="space-y-4">
+				<div>
+					<Label htmlFor="name">Name</Label>
+					<Input
+						id="name"
+						{...form.register('name')}
+						required
+					/>
+				</div>
 
-			<div>
-				<Label htmlFor="description">Description</Label>
-				<Textarea
-					id="description"
-					value={formData.description}
-					onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-				/>
-			</div>
+				<div>
+					<Label htmlFor="description">Description</Label>
+					<Textarea
+						id="description"
+						{...form.register('description')}
+					/>
+				</div>
 
-			<div>
-				<Label htmlFor="program">Program</Label>
-				<Select
-					value={formData.programId}
-					onValueChange={(value) => setFormData({ ...formData, programId: value })}
-				>
-					<SelectTrigger>
-						<SelectValue placeholder="Select a program" />
-					</SelectTrigger>
-					<SelectContent>
-						{programs.map((program: Program) => (
-							<SelectItem key={program.id} value={program.id}>
-								{program.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
+				<div>
+					<Label htmlFor="program">Program</Label>
+					<Select
+						value={form.getValues("programId")}
+						onValueChange={(value) => form.setValue('programId', value)}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder="Select a program" />
+						</SelectTrigger>
+						<SelectContent>
+							{programs.map((program: Program) => (
+								<SelectItem key={program.id} value={program.id}>
+									{program.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 
-			<div>
-				<Label htmlFor="campus">Campus</Label>
-				<Select
-					value={formData.campusId}
-					onValueChange={handleCampusChange}
-					required
-				>
-					<SelectTrigger className="w-full">
-						<SelectValue placeholder="Select a campus" />
-					</SelectTrigger>
-					<SelectContent>
-						{campuses?.map((campus) => (
-							<SelectItem key={campus.id} value={campus.id}>
-								{campus.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{!formData.campusId && (
-					<p className="text-sm text-red-500 mt-1">Campus is required</p>
-				)}
-				<FormMessage />
-			</div>
+				<div>
+					<Label htmlFor="calendar">Calendar</Label>
+					<Select
+						value={form.getValues("calendar.id")}
+						onValueChange={(value) => form.setValue('calendar.id', value)}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder="Select a calendar" />
+						</SelectTrigger>
+						<SelectContent>
+							{calendars?.map((calendar: Calendar) => (
+								<SelectItem key={calendar.id} value={calendar.id}>
+									{calendar.name || 'Unnamed Calendar'}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 
-			<div>
-				<Label htmlFor="calendar">Calendar</Label>
-				<Select
-					value={formData.calendar.id}
-					onValueChange={(value) => setFormData({
-						...formData,
-						calendar: { ...formData.calendar, id: value }
-					})}
-				>
-					<SelectTrigger>
-						<SelectValue placeholder="Select a calendar" />
-					</SelectTrigger>
-					<SelectContent>
-						{calendars?.map((calendar: Calendar) => (
-							<SelectItem key={calendar.id} value={calendar.id}>
-								{calendar.name || 'Unnamed Calendar'}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
+				<div>
+					<Label>Subjects</Label>
+					<MultiSelect
+						options={subjects?.map(subject => ({
+							label: `${subject.name} (${subject.code})`,
+							value: subject.id,
+						})) || []}
+						value={form.getValues("subjectIds")}
+						onChange={(values) => form.setValue("subjectIds", values)}
+						placeholder="Select subjects"
+					/>
+				</div>
 
-			<div>
-				<Label>Subjects</Label>
-				<MultiSelect
-					options={subjects?.map(subject => ({
-						label: `${subject.name} (${subject.code})`,
-						value: subject.id,
-					})) || []}
-					value={formData.subjectIds}
-					onChange={(values) => setFormData({ ...formData, subjectIds: values })}
-					placeholder="Select subjects"
-				/>
-			</div>
-
-			<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
-				{selectedClassGroup ? "Update" : "Create"} Class Group
-			</Button>
-		</form>
+				<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+					{selectedClassGroup ? "Update" : "Create"} Class Group
+				</Button>
+			</form>
+		</Form>
 	);
+
 };

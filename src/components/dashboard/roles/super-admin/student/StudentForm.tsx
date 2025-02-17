@@ -10,13 +10,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/utils/api";
-import { Student } from "@/types/user";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ErrorAlert } from "@/components/ui/error-alert";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { StudentProfile } from "@/types/student";
 
-// First, modify the form schema to handle the date properly
 const formSchema = z.object({
+
 	name: z.string().min(1, "Name is required"),
 	email: z.string().email("Invalid email address"),
 	dateOfBirth: z.string().min(1, "Date of birth is required"),
@@ -35,7 +34,13 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface StudentFormProps {
-	selectedStudent?: Student;
+	selectedStudent?: {
+		id: string;
+		name: string;
+		email: string;
+		status: Status;
+		studentProfile: StudentProfile;
+	};
 	classes: { 
 		id: string; 
 		name: string;
@@ -56,7 +61,11 @@ export const StudentForm = ({ selectedStudent, classes, campuses, onSuccess }: S
 	const { toast } = useToast();
 
 	if (!classes || !campuses) {
-		return <ErrorAlert message="Required data is missing" />;
+		return (
+			<Alert variant="destructive">
+				<AlertTitle>Required data is missing</AlertTitle>
+			</Alert>
+		);
 	}
 
 	const form = useForm<FormValues>({
@@ -177,15 +186,18 @@ export const StudentForm = ({ selectedStudent, classes, campuses, onSuccess }: S
 	)}
   />
 
+
+
+
 <FormField
 	control={form.control}
-	name="campusId"
+	name="classId"
 	render={({ field }) => (
 		<FormItem>
 			<FormLabel>Campus</FormLabel>
 			<Select 
-				onValueChange={field.onChange} 
 				value={field.value}
+				onValueChange={field.onChange}
 				disabled={true}
 			>
 				<FormControl>

@@ -2,13 +2,14 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '@/utils/api';
 import type { CampusContextType } from '@/types/campus';
 import type { Campus, Program, ClassGroup, Status } from '@prisma/client';
+import { type RouterOutputs } from '@/utils/api';
 
 const CampusContext = createContext<CampusContextType | undefined>(undefined);
 
 export function CampusProvider({ children }: { children: React.ReactNode }) {
 	const [currentCampus, setCurrentCampus] = useState<Campus | null>(null);
-	const [programs, setPrograms] = useState<Program[]>([]);
-	const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
+	const [programs, setPrograms] = useState<RouterOutputs["program"]["getAll"]["programs"]>([]);
+	const [classGroups, setClassGroups] = useState<RouterOutputs["classGroup"]["getAllClassGroups"]>([]);
 
 	const utils = api.useContext();
 	const { data: campusData } = api.campus.getAll.useQuery();
@@ -30,7 +31,7 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
 		if (programsData?.programs) {
 			setPrograms(programsData.programs);
 		}
-		if (classGroupsData) setClassGroups(classGroupsData as ClassGroup[]);
+		if (classGroupsData) setClassGroups(classGroupsData);
 	}, [campusData, programsData, classGroupsData]);
 
 	return (

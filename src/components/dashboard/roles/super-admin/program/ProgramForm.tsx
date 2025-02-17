@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { api } from "@/utils/api";
 import { toast } from "@/hooks/use-toast";
@@ -25,11 +25,8 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const ErrorAlert = ({ message }: { message: string }) => (
-    <Alert variant="destructive">
-        <AlertDescription>{message}</AlertDescription>
-    </Alert>
-);
+
+
 
 export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
     const [formData, setFormData] = useState<ProgramFormData>(() => 
@@ -157,7 +154,11 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
     }
 
     if (calendarsError || campusesError) {
-        return <ErrorAlert message={calendarsError?.message || campusesError?.message || 'An error occurred'} />;
+        return (
+            <Alert variant="destructive">
+                <AlertTitle>{calendarsError?.message || campusesError?.message || 'An error occurred'}</AlertTitle>
+            </Alert>
+        );
     }
 
     return (

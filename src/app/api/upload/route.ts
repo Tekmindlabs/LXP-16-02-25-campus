@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { localStorage } from '@/lib/storage/local-storage';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
 	try {
 		const formData = await req.formData();
@@ -30,8 +33,5 @@ export async function POST(req: NextRequest) {
 	}
 }
 
-export const config = {
-	api: {
-		bodyParser: false,
-	},
-};
+
+

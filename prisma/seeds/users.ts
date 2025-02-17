@@ -327,6 +327,25 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 
 	// Create campus roles separately after creating users
 	await Promise.all([
+		// Add super admin campus role
+		await prisma.campusRole.create({
+			data: {
+				userId: users[0]?.id || '', // Super admin is the first user
+				campusId: campus.id,
+				role: 'CAMPUS_ADMIN',
+				permissions: [
+					'MANAGE_CAMPUS_CLASSES',
+					'MANAGE_CAMPUS_TEACHERS',
+					'MANAGE_CAMPUS_STUDENTS',
+					'MANAGE_CAMPUS_TIMETABLES',
+					'MANAGE_CAMPUS_ATTENDANCE',
+					'VIEW_CAMPUS_ANALYTICS',
+					'VIEW_PROGRAMS',
+					'VIEW_CLASS_GROUPS'
+				]
+			}
+		}),
+		// Campus admin role
 		await prisma.campusRole.create({
 			data: {
 				userId: campusAdminUser.id,
@@ -344,6 +363,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 				]
 			}
 		}),
+		// Teacher roles
 		...createdTeachers.map(async (teacher) => await prisma.campusRole.create({
 			data: {
 				userId: teacher.id,

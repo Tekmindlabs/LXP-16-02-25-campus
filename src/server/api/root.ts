@@ -7,6 +7,8 @@ import { subjectRouter } from "./routers/subject";
 import { campusRouter } from "./routers/campus";
 import { programRouter } from "./routers/program";
 import { calendarRouter } from "./routers/calendar";
+import { studentRouter } from "./routers/student";
+import { teacherRouter } from "./routers/teacher";
 
 export const appRouter = createTRPCRouter({
   activity: activityRouter,
@@ -17,6 +19,8 @@ export const appRouter = createTRPCRouter({
   campus: campusRouter,
   program: programRouter,
   calendar: calendarRouter,
+  student: studentRouter,
+  teacher: teacherRouter,
 });
 
 export type AppRouter = typeof appRouter;

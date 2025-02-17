@@ -122,7 +122,7 @@ const CampusForm: FC<CampusFormProps> = ({ isOpen, onClose, campusId }) => {
 					email: campusData.email,
 					emergencyContact: campusData.emergencyContact,
 				});
-			} catch (error) {
+			} catch (error: unknown) {
 				toast({
 					title: "Error",
 					description: "Failed to load campus data",
@@ -134,6 +134,7 @@ const CampusForm: FC<CampusFormProps> = ({ isOpen, onClose, campusId }) => {
 
 	const updateCampus = api.campus.update.useMutation({
 		onSuccess: () => {
+			console.log('Campus update onSuccess triggered');
 			toast({
 				title: "Success",
 				description: "Campus updated successfully",
@@ -152,6 +153,7 @@ const CampusForm: FC<CampusFormProps> = ({ isOpen, onClose, campusId }) => {
 
 	const createCampus = api.campus.create.useMutation({
 		onSuccess: () => {
+			console.log('Campus create onSuccess triggered');
 			toast({
 				title: "Success",
 				description: "Campus created successfully",

@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusPermission, CampusRoleType } from '@/types/campus';
+import { DefaultRoles } from '@/utils/permissions';
 import { TRPCError } from "@trpc/server";
-import { CampusUserService } from "../../services/CampusUserService";
+
 
 export const campusRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -23,50 +24,101 @@ export const campusRouter = createTRPCRouter({
 			gpsCoordinates: z.string().optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			try {
-				// Verify user exists
-				const user = await ctx.prisma.user.findUnique({
-					where: { id: ctx.session.user.id },
+			if (!ctx.session?.user?.id || !ctx.session?.user?.roles) {
+				throw new TRPCError({
+					code: 'UNAUTHORIZED',
+					message: 'Not authenticated',
 				});
+			}
 
-				if (!user) {
-					throw new TRPCError({
-						code: 'NOT_FOUND',
-						message: 'User not found',
-					});
-				}
+			// Check if user has campus:manage permission from session
+			const canManageCampus = ctx.session.user.permissions.includes('campus:manage');
+			const isSuperAdmin = ctx.session.user.roles.includes(DefaultRoles.SUPER_ADMIN);
 
-				console.log('Creating campus for user:', user.id);
+			if (!canManageCampus && !isSuperAdmin) {
+				throw new TRPCError({
+					code: 'FORBIDDEN',
+					message: 'You do not have permission to create campuses',
+				});
+			}
 
-				// First create the campus
-				const campus = await ctx.prisma.campus.create({
+			return ctx.prisma.$transaction(async (tx) => {
+				// Create campus
+				const campus = await tx.campus.create({
 					data: {
 						...input,
+						status: "ACTIVE",
 					},
 				});
 
 				console.log('Campus created:', campus.id);
 
-				// Use CampusUserService to assign role
-				const campusUserService = new CampusUserService(ctx.prisma);
-				await campusUserService.assignCampusRole(
-					user.id,
-					campus.id,
-					CampusRoleType.CAMPUS_ADMIN
-				);
+				// Create campus role
+				const campusRole = await tx.campusRole.create({
+					data: {
+						userId: ctx.session.user.id,
+						campusId: campus.id,
+						role: CampusRoleType.CAMPUS_ADMIN,
+						permissions: [
+							CampusPermission.MANAGE_CAMPUS_CLASSES,
+							CampusPermission.MANAGE_CAMPUS_TEACHERS,
+							CampusPermission.MANAGE_CAMPUS_STUDENTS,
+							CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+							CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+							CampusPermission.VIEW_CAMPUS_ANALYTICS,
+							CampusPermission.VIEW_PROGRAMS,
+							CampusPermission.VIEW_CLASS_GROUPS
+						],
+					},
+				});
 
-				console.log('Campus role assigned');
+				console.log('Campus role created:', campusRole.id);
 
-
-				return campus;
-			} catch (error) {
-				console.error('Error creating campus:', error);
-				throw error;
-			}
+				// Return the created campus with its role
+				return tx.campus.findUnique({
+					where: { id: campus.id },
+					include: {
+						roles: true,
+						buildings: true,
+					},
+				});
+			});
 		}),
 
+
 	getAll: protectedProcedure.query(async ({ ctx }) => {
-		return ctx.prisma.campus.findMany({
+		if (!ctx.session?.user?.id) {
+			throw new TRPCError({
+				code: 'UNAUTHORIZED',
+				message: 'Not authenticated',
+			});
+		}
+
+		console.log('Fetching campuses for user:', {
+			userId: ctx.session.user.id,
+			roles: ctx.session.user.roles
+		});
+
+		// Super admin can see all campuses
+		const isSuperAdmin = ctx.session.user.roles.includes(DefaultRoles.SUPER_ADMIN);
+		console.log('User is super admin:', isSuperAdmin);
+
+		if (isSuperAdmin) {
+			const campuses = await ctx.prisma.campus.findMany({
+				orderBy: {
+					createdAt: 'desc'
+				},
+				include: {
+					roles: true,
+					buildings: true,
+				}
+			});
+			console.log('Found campuses:', campuses.length);
+			return campuses;
+		}
+
+		// Other users can only see campuses where they have a role
+		const campuses = await ctx.prisma.campus.findMany({
 			where: {
 				roles: {
 					some: {
@@ -74,7 +126,16 @@ export const campusRouter = createTRPCRouter({
 					},
 				},
 			},
+			orderBy: {
+				createdAt: 'desc'
+			},
+			include: {
+				roles: true,
+				buildings: true,
+			}
 		});
+		console.log('Found campuses for regular user:', campuses.length);
+		return campuses;
 	}),
 
 	getUserPermissions: protectedProcedure.query(async ({ ctx }) => {
@@ -143,6 +204,49 @@ export const campusRouter = createTRPCRouter({
 				programCount,
 				classGroupCount,
 			};
+		}),
+
+	getById: protectedProcedure
+		.input(z.string())
+		.query(async ({ ctx, input }) => {
+			return ctx.prisma.campus.findUnique({
+				where: { id: input },
+				include: {
+					roles: true,
+					buildings: true,
+				},
+			});
+		}),
+
+	update: protectedProcedure
+		.input(z.object({
+			id: z.string(),
+			name: z.string(),
+			code: z.string(),
+			establishmentDate: z.string().transform((str) => new Date(str)),
+			type: z.enum(["MAIN", "BRANCH"]),
+			status: z.enum(["ACTIVE", "INACTIVE"]),
+			streetAddress: z.string(),
+			city: z.string(),
+			state: z.string(),
+			country: z.string(),
+			postalCode: z.string(),
+			primaryPhone: z.string(),
+			email: z.string().email(),
+			emergencyContact: z.string(),
+			secondaryPhone: z.string().optional(),
+			gpsCoordinates: z.string().optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			const { id, ...data } = input;
+			return ctx.prisma.campus.update({
+				where: { id },
+				data,
+				include: {
+					roles: true,
+					buildings: true,
+				},
+			});
 		}),
 });
 

@@ -1,15 +1,15 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { type GetServerSidePropsContext } from "next";
 import {
   getServerSession,
   type DefaultSession,
   type NextAuthOptions,
 } from "next-auth";
+
 import { prisma } from "@/server/db";
 import CredentialsProvider from "next-auth/providers/credentials";
-import EmailProvider from "next-auth/providers/email";
 import bcrypt from "bcryptjs";
-import { env } from "@/env.mjs";
+
+
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
@@ -105,71 +105,61 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
       },
-        async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
-        }
+      async authorize(credentials) {
+      if (!credentials?.email || !credentials?.password) {
+        throw new Error("Invalid credentials");
+      }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+      const user = await prisma.user.findUnique({
+        where: { email: credentials.email },
+        include: {
+        userRoles: {
+        include: {
+        role: {
           include: {
-          userRoles: {
-            include: {
-            role: {
-              include: {
-              permissions: {
-                include: {
-                permission: true
-                }
-              }
-              }
-            }
-            }
+          permissions: {
+          include: {
+          permission: true
           }
           }
-        });
-        
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials");
+          }
         }
-        
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        
-        if (!isValid) {
-          throw new Error("Invalid credentials");
         }
-        
-        // Extract roles and permissions
-        const roles = user.userRoles.map(ur => ur.role.name);
-        const permissions = user.userRoles.flatMap(ur => 
-          ur.role.permissions.map(rp => rp.permission.name)
-        );
+        }
+        }
+      });
+      
+      if (!user || !user.password) {
+        throw new Error("Invalid credentials");
+      }
+      
+      const isValid = await bcrypt.compare(credentials.password, user.password);
+      
+      if (!isValid) {
+        throw new Error("Invalid credentials");
+      }
+      
+      // Extract roles and permissions
+      const roles = user.userRoles.map(ur => ur.role.name);
+      const permissions = user.userRoles.flatMap(ur => 
+        ur.role.permissions.map(rp => rp.permission.name)
+      );
 
-        console.log('Auth - User roles and permissions:', { roles, permissions });
-        
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          roles,
-          permissions
-        };
+      console.log('Auth - User roles and permissions:', { roles, permissions });
+      
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        roles,
+        permissions
+      };
       },
     }),
-    EmailProvider({
-      server: {
-        host: env.EMAIL_SERVER_HOST,
-        port: env.EMAIL_SERVER_PORT,
-        auth: {
-          user: env.EMAIL_SERVER_USER,
-          pass: env.EMAIL_SERVER_PASSWORD,
-        },
-      },
-      from: env.EMAIL_FROM,
-    }),
+
   ],
   pages: {
     signIn: "/auth/signin",

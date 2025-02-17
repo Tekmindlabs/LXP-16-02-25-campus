@@ -8,15 +8,8 @@ interface CampusRoleInfo {
 	permissions: CampusPermission[];
 }
 
-interface CampusRoleRecord {
-	id: string;
-	userId: string;
-	campusId: string;
-	role: CampusRoleType;
-	permissions: CampusPermission[];
-}
-
 export class CampusUserService {
+
 	private readonly allowedCampusPermissions: CampusPermission[] = [
 		CampusPermission.MANAGE_CAMPUS_CLASSES,
 		CampusPermission.MANAGE_CAMPUS_TEACHERS,
@@ -37,11 +30,16 @@ export class CampusUserService {
 				perm => this.allowedCampusPermissions.includes(perm)
 			);
 
-			await this.db.$executeRaw`
-				INSERT INTO campus_roles (user_id, campus_id, role, permissions)
-				VALUES (${userId}, ${campusId}, ${role}, ${validPermissions})
-			`;
+			await this.db.campusRole.create({
+				data: {
+					userId,
+					campusId,
+					role,
+					permissions: validPermissions,
+				},
+			});
 		} catch (error) {
+			console.error('Error assigning campus role:', error);
 			throw new TRPCError({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "Failed to assign campus role"
@@ -51,12 +49,20 @@ export class CampusUserService {
 
 	async updateCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
 		try {
-			await this.db.$executeRaw`
-				UPDATE campus_roles
-				SET role = ${role}, permissions = ${this.getDefaultPermissionsForRole(role)}
-				WHERE user_id = ${userId} AND campus_id = ${campusId}
-			`;
+			await this.db.campusRole.update({
+				where: {
+					userId_campusId: {
+						userId,
+						campusId,
+					},
+				},
+				data: {
+					role,
+					permissions: this.getDefaultPermissionsForRole(role),
+				},
+			});
 		} catch (error) {
+			console.error('Error updating campus role:', error);
 			throw new TRPCError({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "Failed to update campus role"
@@ -65,34 +71,42 @@ export class CampusUserService {
 	}
 
 	async getUserRole(userId: string, campusId: string): Promise<CampusRoleType | null> {
-		const result = await this.db.$queryRaw<CampusRoleRecord[]>`
-			SELECT * FROM campus_roles
-			WHERE user_id = ${userId} AND campus_id = ${campusId}
-		`;
-		return result[0]?.role ?? null;
+		const result = await this.db.campusRole.findUnique({
+			where: {
+				userId_campusId: {
+					userId,
+					campusId,
+				},
+			},
+		});
+		return result?.role ? (result.role as CampusRoleType) : null;
 	}
 
 	async hasPermission(userId: string, campusId: string, permission: CampusPermission): Promise<boolean> {
-		const result = await this.db.$queryRaw<CampusRoleRecord[]>`
-			SELECT * FROM campus_roles
-			WHERE user_id = ${userId} AND campus_id = ${campusId}
-		`;
-		return result[0]?.permissions.includes(permission) ?? false;
+		const result = await this.db.campusRole.findUnique({
+			where: {
+				userId_campusId: {
+					userId,
+					campusId,
+				},
+			},
+		});
+		return result?.permissions.includes(permission) ?? false;
 	}
 
 	async getUserCampusRoles(userId: string): Promise<CampusRoleInfo[]> {
 		try {
-			const roles = await this.db.$queryRaw<CampusRoleRecord[]>`
-				SELECT * FROM campus_roles
-				WHERE user_id = ${userId}
-			`;
+			const roles = await this.db.campusRole.findMany({
+				where: { userId },
+			});
 			
 			return roles.map(role => ({
 				campusId: role.campusId,
-				role: role.role,
-				permissions: role.permissions
+				role: role.role as CampusRoleType,
+				permissions: role.permissions as CampusPermission[],
 			}));
 		} catch (error) {
+			console.error('Error fetching user campus roles:', error);
 			throw new TRPCError({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "Failed to fetch user campus roles"

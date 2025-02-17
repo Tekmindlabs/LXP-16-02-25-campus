@@ -1,4 +1,4 @@
-import { CampusManagement } from "@/components/dashboard/campus/CampusManagement";
+import { CampusManagement } from "@/components/dashboard/roles/super-admin/campus/CampusManagement";
 
 export default function CampusPage() {
 	return (
