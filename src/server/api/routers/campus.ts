@@ -4,6 +4,70 @@ import { CampusPermission } from '@/types/campus';
 import { TRPCError } from "@trpc/server";
 
 export const campusRouter = createTRPCRouter({
+	create: protectedProcedure
+		.input(z.object({ 
+			name: z.string(),
+			code: z.string(),
+			establishmentDate: z.string().transform((str) => new Date(str)),
+			type: z.enum(["MAIN", "BRANCH"]),
+			streetAddress: z.string(),
+			city: z.string(),
+			state: z.string(),
+			country: z.string(),
+			postalCode: z.string(),
+			primaryPhone: z.string(),
+			email: z.string().email(),
+			emergencyContact: z.string(),
+			secondaryPhone: z.string().optional(),
+			gpsCoordinates: z.string().optional(),
+		}))
+		.mutation(async ({ ctx, input }) => {
+			// Verify user exists
+			const user = await ctx.prisma.user.findUnique({
+				where: { id: ctx.session.user.id },
+			});
+
+			if (!user) {
+				throw new TRPCError({
+					code: 'NOT_FOUND',
+					message: 'User not found',
+				});
+			}
+
+			// Create campus with role
+			return ctx.prisma.campus.create({
+				data: {
+					...input,
+					roles: {
+						create: {
+							userId: user.id,
+							role: "ADMIN",
+							permissions: [
+								"VIEW_CAMPUS",
+								"EDIT_CAMPUS",
+								"DELETE_CAMPUS",
+								"VIEW_PROGRAMS",
+								"EDIT_PROGRAMS",
+								"DELETE_PROGRAMS",
+								"VIEW_CLASS_GROUPS",
+								"EDIT_CLASS_GROUPS",
+								"DELETE_CLASS_GROUPS",
+								"VIEW_CLASSES",
+								"EDIT_CLASSES",
+								"DELETE_CLASSES",
+								"VIEW_STUDENTS",
+								"EDIT_STUDENTS",
+								"DELETE_STUDENTS",
+								"VIEW_TEACHERS",
+								"EDIT_TEACHERS",
+								"DELETE_TEACHERS",
+							],
+						},
+					},
+				},
+			});
+		}),
+
 	getAll: protectedProcedure.query(async ({ ctx }) => {
 		return ctx.prisma.campus.findMany({
 			where: {

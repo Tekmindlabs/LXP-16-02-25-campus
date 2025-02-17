@@ -1,207 +1,417 @@
-Based on the provided codebase, I'll analyze the current implementation and identify where campus role permissions need to be adjusted to align with the intended design.
+I'll provide detailed instructions for updating each form to include campus associations in the super admin UI:
 
-Current Implementation Issues:
-
-1. Over-permissive Campus Role Permissions:
+1. Update Form Schemas:
 ```typescript
-// From /types/campus.ts
-export enum CampusPermission {
-  MANAGE_USERS = "MANAGE_USERS",
-  MANAGE_PROGRAMS = "MANAGE_PROGRAMS", // Should be removed for campus roles
-  MANAGE_CLASSES = "MANAGE_CLASSES",
-  MANAGE_CLASSROOMS = "MANAGE_CLASSROOMS",
-  VIEW_ANALYTICS = "VIEW_ANALYTICS",
-  MANAGE_SETTINGS = "MANAGE_SETTINGS"
-}
-```
-
-2. Campus Role Service Implementation:
-```typescript
-// From /server/services/CampusUserService.ts
-export class CampusUserService {
-  // Currently allows assigning any permission to campus roles
-  async assignCampusRole(userId: string, campusId: string, role: CampusRole) {
-    // No validation to prevent program/classgroup management permissions
-  }
-}
-```
-
-3. API Router Implementation:
-```typescript
-// From /server/api/routers/campus.ts
-export const campusRouter = createTRPCRouter({
-  // Currently allows campus roles to manage programs and class groups
-  // Should be restricted to only viewing inherited programs/groups
+// Add to each form's schema (ProgramForm, ClassGroupForm, TeacherForm, StudentForm):
+const formSchema = z.object({
+  // ... existing fields
+  campusId: z.string().min(1, "Campus is required"),
+  // For entities that can be associated with multiple campuses
+  campusIds: z.array(z.string()).min(1, "At least one campus must be selected"),
 });
 ```
 
-Recommended Changes:
-
-1. Update Permission Structure:
+2. Update Form Interfaces:
 ```typescript
-export enum CampusPermission {
-  // Campus-specific permissions
-  MANAGE_CAMPUS_CLASSES = "MANAGE_CAMPUS_CLASSES",
-  MANAGE_CAMPUS_TEACHERS = "MANAGE_CAMPUS_TEACHERS",
-  MANAGE_CAMPUS_STUDENTS = "MANAGE_CAMPUS_STUDENTS",
-  MANAGE_CAMPUS_TIMETABLES = "MANAGE_CAMPUS_TIMETABLES",
-  MANAGE_CAMPUS_ATTENDANCE = "MANAGE_CAMPUS_ATTENDANCE",
-  VIEW_CAMPUS_ANALYTICS = "VIEW_CAMPUS_ANALYTICS",
-  
-  // Read-only permissions for inherited items
-  VIEW_PROGRAMS = "VIEW_PROGRAMS",
-  VIEW_CLASS_GROUPS = "VIEW_CLASS_GROUPS"
+interface FormProps {
+  // ... existing props
+  campuses: {
+    id: string;
+    name: string;
+    code: string;
+  }[];
 }
 ```
 
-2. Update Role Service:
+3. Specific Updates Per Component:
+
+A. ProgramForm:
 ```typescript
-export class CampusUserService {
-  private readonly allowedCampusPermissions = [
-    CampusPermission.MANAGE_CAMPUS_CLASSES,
-    CampusPermission.MANAGE_CAMPUS_TEACHERS,
-    CampusPermission.MANAGE_CAMPUS_STUDENTS,
-    CampusPermission.MANAGE_CAMPUS_TIMETABLES,
-    CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
-    CampusPermission.VIEW_CAMPUS_ANALYTICS,
-    CampusPermission.VIEW_PROGRAMS,
-    CampusPermission.VIEW_CLASS_GROUPS
-  ];
-
-  async assignCampusRole(userId: string, campusId: string, role: CampusRole) {
-    // Validate permissions against allowed list
-    const validPermissions = role.permissions.filter(
-      perm => this.allowedCampusPermissions.includes(perm)
-    );
-
-    // Only assign valid permissions
-    await this.db.$executeRaw`
-      INSERT INTO campus_roles (user_id, campus_id, role, permissions)
-      VALUES (${userId}, ${campusId}, ${role.name}, ${validPermissions})
-    `;
-  }
-}
+// Add campus selection field
+<FormField
+  control={form.control}
+  name="campusId"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Campus</FormLabel>
+      <Select onValueChange={field.onChange} defaultValue={field.value}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select Campus" />
+        </SelectTrigger>
+        <SelectContent>
+          {campuses.map((campus) => (
+            <SelectItem key={campus.id} value={campus.id}>
+              {campus.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 ```
 
-3. Update API Routers:
+B. ClassGroupForm:
 ```typescript
-// campus-class.ts
-export const campusClassRouter = createTRPCRouter({
-  create: protectedProcedure
-    .input(classCreateSchema)
-    .mutation(async ({ ctx, input }) => {
-      const hasPermission = await ctx.userService.hasPermission(
-        ctx.session.userId,
-        input.campusId,
-        CampusPermission.MANAGE_CAMPUS_CLASSES
-      );
-      
-      if (!hasPermission) {
-        throw new TRPCError({ code: 'FORBIDDEN' });
-      }
-      
-      // Create class logic
-    }),
+// Add to FormData interface
+interface FormData {
+  // ... existing fields
+  campusId: string;
+}
+
+// Add campus selection field similar to ProgramForm
+// Update mutation:
+const createClassGroup = api.classGroup.create.useMutation({
+  onSuccess: () => {
+    // ... existing success handling
+  },
+});
+```
+
+C. TeacherForm:
+```typescript
+// Add multi-campus selection using MultiSelect component
+<FormField
+  control={form.control}
+  name="campusIds"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Assigned Campuses</FormLabel>
+      <MultiSelect
+        selected={field.value}
+        options={campuses.map(c => ({ value: c.id, label: c.name }))}
+        onChange={(values) => field.onChange(values)}
+        placeholder="Select Campuses"
+      />
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+D. StudentForm:
+```typescript
+// Add campus association based on selected class
+// Update form submission to include campus data
+const onSubmit = async (data: FormValues) => {
+  try {
+    const selectedClass = classes.find(c => c.id === data.classId);
+    const campusId = selectedClass?.campusId;
     
-  // Add endpoints for managing teachers, students, timetables, attendance
-});
-```
-
-4. Implement Read-only Views:
-```typescript
-// For inherited programs and class groups
-export const campusViewRouter = createTRPCRouter({
-  getInheritedPrograms: protectedProcedure
-    .input(z.object({ campusId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const hasPermission = await ctx.userService.hasPermission(
-        ctx.session.userId,
-        input.campusId,
-        CampusPermission.VIEW_PROGRAMS
-      );
-      
-      if (!hasPermission) {
-        throw new TRPCError({ code: 'FORBIDDEN' });
-      }
-      
-      return ctx.prisma.program.findMany({
-        where: {
-          campuses: {
-            some: {
-              id: input.campusId
-            }
-          }
-        }
-      });
-    }),
-    
-  getInheritedClassGroups: protectedProcedure
-    .input(z.object({ campusId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      // Similar implementation for class groups
-    })
-});
-```
-
-5. Update Class Service:
-```typescript
-// From CampusClassService.ts
-export class CampusClassService {
-  async createClass(userId: string, campusId: string, data: ClassCreateInput) {
-    const hasPermission = await this.userService.hasPermission(
-      userId,
-      campusId,
-      CampusPermission.MANAGE_CAMPUS_CLASSES
-    );
-
-    if (!hasPermission) {
-      throw new Error("User does not have permission to create classes");
-    }
-
-    // Validate that class group is inherited
-    const isInheritedClassGroup = await this.validateInheritedClassGroup(
-      campusId,
-      data.classGroupId
-    );
-
-    if (!isInheritedClassGroup) {
-      throw new Error("Cannot create class for non-inherited class group");
-    }
-
-    // Create class logic
-  }
-
-  private async validateInheritedClassGroup(
-    campusId: string,
-    classGroupId: string
-  ): Promise<boolean> {
-    const classGroup = await this.db.classGroup.findFirst({
-      where: {
-        id: classGroupId,
-        program: {
-          campuses: {
-            some: {
-              id: campusId
-            }
-          }
-        }
-      }
+    await createStudent.mutateAsync({
+      ...data,
+      campusId
     });
-    
-    return !!classGroup;
+  } catch (error) {
+    // Error handling
   }
+};
+```
+
+4. API Updates:
+
+```typescript
+// Update mutation endpoints to include campus data
+const createMutation = api.entity.create.useMutation({
+  onSuccess: () => {
+    utils.entity.invalidate();
+    onSuccess?.();
+  },
+});
+
+// Update query to fetch campus-specific data
+const { data: entities } = api.entity.getAll.useQuery({
+  campusId: selectedCampusId
+});
+```
+
+5. Management Component Updates:
+
+```typescript
+// Add campus filter to list views
+const CampusFilter = () => {
+  return (
+    <Select
+      value={selectedCampusId}
+      onValueChange={(value) => setSelectedCampusId(value)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Filter by Campus" />
+      </SelectTrigger>
+      <SelectContent>
+        {campuses.map((campus) => (
+          <SelectItem key={campus.id} value={campus.id}>
+            {campus.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+```
+
+6. Implementation Steps:
+
+1. Update database schema to include campus relations
+2. Modify API endpoints to handle campus associations
+3. Update form components with campus fields
+4. Add campus filtering to list views
+5. Update create/edit mutations to include campus data
+6. Add validation for campus requirements
+7. Update UI to display campus information
+8. Add campus-specific data loading logic
+
+7. Testing Checklist:
+
+- Verify campus selection works in all forms
+- Test create/edit operations with campus associations
+- Validate campus filtering functionality
+- Check data persistence for campus associations
+- Test multi-campus selection where applicable
+- Verify campus-specific data loading
+- Test validation rules for campus fields
+
+Based on the provided codebase, I'll generate detailed instructions for implementing campus associations across class groups, teachers, and students, following the pattern established in the ClassForm component.
+
+1. Update ClassGroupForm:
+```typescript
+// Add to formSchema
+const formSchema = z.object({
+  // existing fields...
+  campusId: z.string().min(1, "Campus is required"),
+});
+
+// Update form interface
+interface ClassGroupFormProps {
+  // existing props...
+  campuses: {
+    id: string;
+    name: string;
+  }[];
+}
+
+// Add campus selection field
+<FormField
+  control={form.control}
+  name="campusId"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Campus</FormLabel>
+      <Select onValueChange={field.onChange} value={field.value}>
+        <FormControl>
+          <SelectTrigger>
+            <SelectValue placeholder="Select campus" />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+          {campuses.map((campus) => (
+            <SelectItem key={campus.id} value={campus.id}>
+              {campus.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+2. Update TeacherForm:
+```typescript
+// Add to formSchema
+const formSchema = z.object({
+  // existing fields...
+  campusIds: z.array(z.string()).min(1, "At least one campus must be selected"),
+});
+
+// Add to TeacherFormProps
+interface TeacherFormProps {
+  // existing props...
+  campuses: {
+    id: string;
+    name: string;
+  }[];
+}
+
+// Add multi-campus selection
+<FormField
+  control={form.control}
+  name="campusIds"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Assigned Campuses</FormLabel>
+      <div className="flex flex-wrap gap-2">
+        {campuses.map((campus) => (
+          <div
+            key={campus.id}
+            className={`cursor-pointer rounded-md px-3 py-1 text-sm ${
+              field.value?.includes(campus.id)
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary'
+            }`}
+            onClick={() => {
+              const currentValues = field.value || [];
+              const newValues = currentValues.includes(campus.id)
+                ? currentValues.filter((v) => v !== campus.id)
+                : [...currentValues, campus.id];
+              field.onChange(newValues);
+            }}
+          >
+            {campus.name}
+          </div>
+        ))}
+      </div>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+3. Update StudentForm:
+```typescript
+// Add to formSchema
+const formSchema = z.object({
+  // existing fields...
+  campusId: z.string().min(1, "Campus is required"),
+});
+
+// Update form interface
+interface StudentFormProps {
+  // existing props...
+  campuses: {
+    id: string;
+    name: string;
+  }[];
+}
+
+// Add campus selection (inherited from class)
+<FormField
+  control={form.control}
+  name="campusId"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Campus</FormLabel>
+      <Select 
+        onValueChange={field.onChange} 
+        value={field.value}
+        disabled={true} // Campus is inherited from selected class
+      >
+        <FormControl>
+          <SelectTrigger>
+            <SelectValue placeholder="Inherited from class" />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+          {campuses.map((campus) => (
+            <SelectItem key={campus.id} value={campus.id}>
+              {campus.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+4. Update Management Components:
+
+```typescript
+// Add campus filter to list views
+const CampusFilter = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Filter by Campus" />
+      </SelectTrigger>
+      <SelectContent>
+        {campuses.map((campus) => (
+          <SelectItem key={campus.id} value={campus.id}>
+            {campus.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
+// Add to list components
+const [selectedCampusId, setSelectedCampusId] = useState<string>("");
+
+// Update queries to include campus filter
+const { data: entities } = api.entity.getAll.useQuery({
+  campusId: selectedCampusId || undefined
+});
+```
+
+5. Implementation Steps:
+
+1. Database Schema Updates:
+```prisma
+model ClassGroup {
+  id        String   @id @default(cuid())
+  campusId  String
+  campus    Campus   @relation(fields: [campusId], references: [id])
+  // ... other fields
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  campuses  CampusTeacher[]
+  // ... other fields
+}
+
+model CampusTeacher {
+  campusId   String
+  teacherId  String
+  campus     Campus   @relation(fields: [campusId], references: [id])
+  teacher    Teacher  @relation(fields: [teacherId], references: [id])
+  @@id([campusId, teacherId])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  campusId  String
+  campus    Campus   @relation(fields: [campusId], references: [id])
+  // ... other fields
 }
 ```
 
-These changes will:
-1. Restrict campus roles to only managing classes, teachers, students, timetables, and attendance
-2. Provide read-only access to inherited programs and class groups
-3. Prevent creation of new programs or class groups at the campus level
-4. Ensure classes can only be created within inherited class groups
-5. Maintain proper separation of concerns between campus and program-level management
+2. API Updates:
+```typescript
+// Update mutations to handle campus associations
+const createClassGroup = api.classGroup.create.useMutation({
+  // ... existing config
+  onMutate: async (variables) => {
+    // Include campus validation
+    if (!variables.campusId) {
+      throw new Error("Campus is required");
+    }
+  }
+});
 
-The implementation should focus on:
-1. Managing campus-specific entities (classes, teachers, students)
-2. Viewing and utilizing inherited structures (programs, class groups)
-3. Managing operational aspects (timetables, attendance)
-4. Maintaining proper access control and validation
+const createTeacher = api.teacher.create.useMutation({
+  // ... existing config
+  onMutate: async (variables) => {
+    // Include campus validation
+    if (!variables.campusIds?.length) {
+      throw new Error("At least one campus must be selected");
+    }
+  }
+});
+```
+
+3. Testing Checklist:
+- Verify campus selection works in all forms
+- Test create/edit operations with campus associations
+- Validate campus filtering functionality
+- Check data persistence for campus associations
+- Test multi-campus selection for teachers
+- Verify campus inheritance for students from classes
+- Test campus-specific data loading
+- Verify permissions and access control
+
+These updates will ensure proper campus association management across all entities while maintaining data consistency and user experience.

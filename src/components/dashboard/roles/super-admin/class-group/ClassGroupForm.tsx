@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { api } from "@/utils/api";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { Status, CalendarType } from "@prisma/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,6 +36,7 @@ interface FormData {
 	name: string;
 	description?: string;
 	programId: string;
+	campusId: string;
 	status: Status;
 	calendar: {
 		id: string;
@@ -43,13 +46,12 @@ interface FormData {
 }
 
 interface Props {
-	programs: Program[];
-	subjects: Subject[];
 	selectedClassGroup?: {
 		id: string;
 		name: string;
 		description: string | null;
 		programId: string;
+		campusId: string;
 		status: Status;
 		calendarId?: string;
 		subjects?: Subject[];
@@ -57,11 +59,14 @@ interface Props {
 	onSuccess?: () => void;
 }
 
-export const ClassGroupForm = ({ programs, selectedClassGroup, onSuccess }: Props) => {
+
+export const ClassGroupForm = ({ selectedClassGroup, onSuccess }: Props) => {
+
 	const [formData, setFormData] = useState<FormData>({
 		name: selectedClassGroup?.name || "",
 		description: selectedClassGroup?.description || undefined,
 		programId: selectedClassGroup?.programId || "",
+		campusId: selectedClassGroup?.campusId || "",
 		status: selectedClassGroup?.status || Status.ACTIVE,
 		calendar: {
 			id: selectedClassGroup?.calendarId || "",
@@ -70,10 +75,49 @@ export const ClassGroupForm = ({ programs, selectedClassGroup, onSuccess }: Prop
 		subjectIds: selectedClassGroup?.subjects?.map(s => s.id) || []
 	});
 
-	const { data: calendars } = api.calendar.getAll.useQuery();
-	const { data: subjects } = api.subject.searchSubjects.useQuery({ search: "", status: Status.ACTIVE });
+	const { 
+		data: calendars, 
+		isLoading: calendarsLoading, 
+		error: calendarsError 
+	} = api.calendar.getAll.useQuery();
+	
+	const { 
+		data: subjects, 
+		isLoading: subjectsLoading, 
+		error: subjectsError 
+	} = api.subject.searchSubjects.useQuery({ search: "", status: Status.ACTIVE });
+	
+	const { 
+		data: campuses, 
+		isLoading: campusesLoading, 
+		error: campusesError 
+	} = api.campus.getAll.useQuery();
+
+	const {
+		data: programs,
+		isLoading: programsLoading,
+		error: programsError
+	} = api.program.getAll.useQuery({});
+
+	const loading = calendarsLoading || subjectsLoading || campusesLoading || programsLoading;
+	const error = calendarsError || subjectsError || campusesError || programsError;
+
+	if (loading) {
+		return <LoadingSpinner />;
+	}
+
+	if (error) {
+		return <ErrorAlert message={error.message || 'An error occurred while loading data'} />;
+	}
 
 
+	if (!programs || !campuses || !subjects || !calendars) {
+		return <ErrorAlert message="Required data is missing" />;
+	}
+
+	const handleCampusChange = (value: string) => {
+		setFormData({ ...formData, campusId: value });
+	};
 
 
 	const utils = api.useContext();
@@ -123,6 +167,7 @@ export const ClassGroupForm = ({ programs, selectedClassGroup, onSuccess }: Prop
 				name: formData.name,
 				description: formData.description,
 				programId: formData.programId,
+				campusId: formData.campusId,
 				status: formData.status,
 				calendar: {
 					id: formData.calendar.id,
@@ -131,10 +176,20 @@ export const ClassGroupForm = ({ programs, selectedClassGroup, onSuccess }: Prop
 				subjectIds: formData.subjectIds
 			});
 		} else {
+			if (!formData.campusId) {
+				toast({
+					title: "Error",
+					description: "Campus is required",
+					variant: "destructive",
+				});
+				return;
+			}
+
 			createMutation.mutate({
 				name: formData.name,
 				description: formData.description,
 				programId: formData.programId,
+				campusId: formData.campusId,
 				status: formData.status,
 				calendar: {
 					id: formData.calendar.id,
@@ -185,6 +240,30 @@ export const ClassGroupForm = ({ programs, selectedClassGroup, onSuccess }: Prop
 						))}
 					</SelectContent>
 				</Select>
+			</div>
+
+			<div>
+				<Label htmlFor="campus">Campus</Label>
+				<Select
+					value={formData.campusId}
+					onValueChange={handleCampusChange}
+					required
+				>
+					<SelectTrigger className="w-full">
+						<SelectValue placeholder="Select a campus" />
+					</SelectTrigger>
+					<SelectContent>
+						{campuses?.map((campus) => (
+							<SelectItem key={campus.id} value={campus.id}>
+								{campus.name}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				{!formData.campusId && (
+					<p className="text-sm text-red-500 mt-1">Campus is required</p>
+				)}
+				<FormMessage />
 			</div>
 
 			<div>

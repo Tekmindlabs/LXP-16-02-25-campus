@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/utils/api";
 import { Student } from "@/types/user";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { useToast } from "@/hooks/use-toast";
 
 // First, modify the form schema to handle the date properly
 const formSchema = z.object({
@@ -35,19 +38,26 @@ interface StudentFormProps {
 	selectedStudent?: Student;
 	classes: { 
 		id: string; 
-		name: string; 
+		name: string;
+		campusId: string; 
 		classGroup: { 
 			id: string;
 			name: string;
 			program: { name: string | null; };
 		}; 
 	}[];
+	campuses: { id: string; name: string; }[];
 	onSuccess: () => void;
 }
 
-export const StudentForm = ({ selectedStudent, classes, onSuccess }: StudentFormProps) => {
+export const StudentForm = ({ selectedStudent, classes, campuses, onSuccess }: StudentFormProps) => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const utils = api.useContext();
+	const { toast } = useToast();
+
+	if (!classes || !campuses) {
+		return <ErrorAlert message="Required data is missing" />;
+	}
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -81,11 +91,17 @@ export const StudentForm = ({ selectedStudent, classes, onSuccess }: StudentForm
 	const onSubmit = async (values: FormValues) => {
 		setIsSubmitting(true);
 		try {
+			const selectedClass = classes.find(c => c.id === values.classId);
+			if (!selectedClass) {
+				throw new Error("Selected class not found");
+			}
+
 			const formData = {
 				name: values.name,
 				email: values.email,
 				dateOfBirth: new Date(values.dateOfBirth),
 				classId: values.classId,
+				campusId: selectedClass.campusId,
 				status: values.status,
 				...(values.parentId && { parentId: values.parentId }),
 				...(values.guardianInfo && { guardianInfo: values.guardianInfo })
@@ -99,6 +115,12 @@ export const StudentForm = ({ selectedStudent, classes, onSuccess }: StudentForm
 			} else {
 				await createStudent.mutateAsync(formData);
 			}
+		} catch (error) {
+			toast({
+				title: "Error",
+				description: error instanceof Error ? error.message : "An error occurred",
+				variant: "destructive"
+			});
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -154,6 +176,35 @@ export const StudentForm = ({ selectedStudent, classes, onSuccess }: StudentForm
 	  </FormItem>
 	)}
   />
+
+<FormField
+	control={form.control}
+	name="campusId"
+	render={({ field }) => (
+		<FormItem>
+			<FormLabel>Campus</FormLabel>
+			<Select 
+				onValueChange={field.onChange} 
+				value={field.value}
+				disabled={true}
+			>
+				<FormControl>
+					<SelectTrigger>
+						<SelectValue placeholder="Inherited from class" />
+					</SelectTrigger>
+				</FormControl>
+				<SelectContent>
+					{campuses.map((campus) => (
+						<SelectItem key={campus.id} value={campus.id}>
+							{campus.name}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+			<FormMessage />
+		</FormItem>
+	)}
+/>
 
 <FormField
 	control={form.control}

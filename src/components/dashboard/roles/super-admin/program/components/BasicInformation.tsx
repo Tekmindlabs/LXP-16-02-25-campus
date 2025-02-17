@@ -4,15 +4,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Status } from "@prisma/client";
 import { ProgramFormData } from "@/types/program";
+import { api } from "@/utils/api";
 
 interface BasicInformationProps {
 	formData: ProgramFormData;
 	calendars: any[];
 	coordinators: any[];
+	campuses: any[];
 	onFormDataChange: (newData: Partial<ProgramFormData>) => void;
 }
 
-export const BasicInformation = ({ formData, calendars, coordinators, onFormDataChange }: BasicInformationProps) => {
+export const BasicInformation = ({ formData, calendars, coordinators, campuses, onFormDataChange }: BasicInformationProps) => {
+
+
 	return (
 		<div className="space-y-4">
 			<div>
@@ -68,6 +72,25 @@ export const BasicInformation = ({ formData, calendars, coordinators, onFormData
 						{coordinators.map((coordinator) => (
 							<SelectItem key={coordinator.id} value={coordinator.id}>
 								{coordinator.user.name}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+
+			<div>
+				<Label htmlFor="campus">Campus</Label>
+				<Select
+					value={formData.campusId}
+					onValueChange={(value) => onFormDataChange({ campusId: value })}
+				>
+					<SelectTrigger className="w-full">
+						<SelectValue placeholder="Select Campus" />
+					</SelectTrigger>
+					<SelectContent>
+						{campuses.map((campus) => (
+							<SelectItem key={campus.id} value={campus.id}>
+								{campus.name}
 							</SelectItem>
 						))}
 					</SelectContent>

@@ -37,8 +37,11 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
     );
 
     const { data: calendars, isLoading: calendarsLoading, error: calendarsError } = 
-        api.academicCalendar.getAllCalendars.useQuery();
-    
+        api.calendar.getAll.useQuery();
+
+    const { data: campuses, isLoading: campusesLoading, error: campusesError } = 
+        api.campus.getAll.useQuery();
+
     const utils = api.useContext();
 
     const createMutation = api.program.create.useMutation({
@@ -149,12 +152,12 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
         });
     }
 
-    if (calendarsLoading) {
+    if (calendarsLoading || campusesLoading) {
         return <LoadingSpinner />;
     }
 
-    if (calendarsError) {
-        return <ErrorAlert message={calendarsError.message} />;
+    if (calendarsError || campusesError) {
+        return <ErrorAlert message={calendarsError?.message || campusesError?.message || 'An error occurred'} />;
     }
 
     return (
@@ -174,6 +177,7 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
                         formData={formData}
                         calendars={calendars || []}
                         coordinators={coordinators}
+                        campuses={campuses || []}
                         onFormDataChange={handleFormDataChange}
                     />
 
@@ -201,6 +205,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
         description: program.description || "",
         calendarId: program.calendarId,
         coordinatorId: program.coordinatorId || "NO_SELECTION",
+        campusId: program.campusId,
         status: program.status as Status,
         termSystem: {
             type: program.termStructures?.[0]?.type || "SEMESTER",
@@ -243,6 +248,7 @@ const prepareSubmissionData = (formData: ProgramFormData) => {
         calendarId: formData.calendarId,
         coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
             undefined : formData.coordinatorId,
+        campusId: formData.campusId,
         status: formData.status,
         termSystem: formData.termSystem,
         assessmentSystem: formData.assessmentSystem

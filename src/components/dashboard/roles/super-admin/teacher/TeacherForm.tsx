@@ -3,15 +3,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Status, TeacherType } from "@prisma/client";
+import { TRPCClientError } from '@trpc/client';
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { useToast } from "@/hooks/use-toast";
 
 import { api } from "@/trpc/react";
+
 
 const formSchema = z.object({
 	name: z.string().min(1, "Name is required"),
@@ -23,6 +25,7 @@ const formSchema = z.object({
 	status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
 	subjectIds: z.array(z.string()).default([]),
 	classIds: z.array(z.string()).default([]),
+	campusIds: z.array(z.string()).min(1, "At least one campus must be selected"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -46,6 +49,7 @@ interface TeacherFormProps {
 	};
 	subjects: { id: string; name: string }[];
 	classes: { id: string; name: string; classGroup: { name: string } }[];
+	campuses: { id: string; name: string }[];
 }
 
 export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, classes }: TeacherFormProps) => {
@@ -65,6 +69,7 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 			status: Status.ACTIVE,
 			subjectIds: [],
 			classIds: [],
+			campusIds: [],
 		},
 	});
 
@@ -80,6 +85,7 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 				status: selectedTeacher.status,
 				subjectIds: selectedTeacher.teacherProfile?.subjects.map(s => s.subject.id) || [],
 				classIds: selectedTeacher.teacherProfile?.classes.map(c => c.class.id) || [],
+				campusIds: selectedTeacher.teacherProfile?.campuses?.map(c => c.id) || [],
 			});
 		} else {
 			form.reset({
@@ -96,9 +102,9 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 		}
 	}, [selectedTeacher, form]);
 
-	const createTeacher = api.teacher.createTeacher.useMutation({
+	const createTeacher = api.teachers.create.useMutation({
 		onSuccess: () => {
-			utils.teacher.searchTeachers.invalidate();
+			utils.teachers.list.invalidate();
 			form.reset();
 			onClose();
 			toast({
@@ -106,7 +112,7 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 				description: "Teacher created successfully",
 			});
 		},
-		onError: (error) => {
+		onError: (error: TRPCClientError<any>) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -115,16 +121,16 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 		},
 	});
 
-	const updateTeacher = api.teacher.updateTeacher.useMutation({
+	const updateTeacher = api.teachers.update.useMutation({
 		onSuccess: () => {
-			utils.teacher.searchTeachers.invalidate();
+			utils.teachers.list.invalidate();
 			onClose();
 			toast({
 				title: "Success",
 				description: "Teacher updated successfully",
 			});
 		},
-		onError: (error) => {
+		onError: (error: TRPCClientError<any>) => {
 			toast({
 				title: "Error",
 				description: error.message,
@@ -339,6 +345,27 @@ export const TeacherForm = ({ isCreate, onClose, selectedTeacher, subjects, clas
 		</FormItem>
 	)}
 />
+
+<FormField
+	control={form.control}
+	name="campusIds"
+	render={({ field }) => (
+		<FormItem>
+			<FormLabel>Assigned Campuses</FormLabel>
+			<MultiSelect
+				value={field.value}
+				options={props.campuses.map((campus: { id: string; name: string }) => ({
+					value: campus.id,
+					label: campus.name
+				}))}
+				onChange={(values) => field.onChange(values)}
+				placeholder="Select Campuses"
+			/>
+			<FormMessage />
+		</FormItem>
+	)}
+/>
+
 				<div className="flex justify-end space-x-2">
 					<Button type="button" variant="outline" onClick={onClose}>
 						Cancel
