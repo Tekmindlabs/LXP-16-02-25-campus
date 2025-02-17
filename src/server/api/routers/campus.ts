@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
-import { CampusPermission } from '@/types/campus';
+import { CampusPermission, CampusRoleType } from '@/types/campus';
 import { TRPCError } from "@trpc/server";
 
 export const campusRouter = createTRPCRouter({
@@ -22,50 +22,57 @@ export const campusRouter = createTRPCRouter({
 			gpsCoordinates: z.string().optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			// Verify user exists
-			const user = await ctx.prisma.user.findUnique({
-				where: { id: ctx.session.user.id },
-			});
-
-			if (!user) {
-				throw new TRPCError({
-					code: 'NOT_FOUND',
-					message: 'User not found',
+			try {
+				// Verify user exists
+				const user = await ctx.prisma.user.findUnique({
+					where: { id: ctx.session.user.id },
 				});
-			}
 
-			// Create campus with role
-			return ctx.prisma.campus.create({
-				data: {
-					...input,
-					roles: {
-						create: {
-							userId: user.id,
-							role: "ADMIN",
-							permissions: [
-								"VIEW_CAMPUS",
-								"EDIT_CAMPUS",
-								"DELETE_CAMPUS",
-								"VIEW_PROGRAMS",
-								"EDIT_PROGRAMS",
-								"DELETE_PROGRAMS",
-								"VIEW_CLASS_GROUPS",
-								"EDIT_CLASS_GROUPS",
-								"DELETE_CLASS_GROUPS",
-								"VIEW_CLASSES",
-								"EDIT_CLASSES",
-								"DELETE_CLASSES",
-								"VIEW_STUDENTS",
-								"EDIT_STUDENTS",
-								"DELETE_STUDENTS",
-								"VIEW_TEACHERS",
-								"EDIT_TEACHERS",
-								"DELETE_TEACHERS",
-							],
-						},
+				if (!user) {
+					throw new TRPCError({
+						code: 'NOT_FOUND',
+						message: 'User not found',
+					});
+				}
+
+				console.log('Creating campus for user:', user.id);
+
+				// First create the campus
+				const campus = await ctx.prisma.campus.create({
+					data: {
+						...input,
 					},
-				},
-			});
+				});
+
+				console.log('Campus created:', campus.id);
+
+				// Then create the role
+				const role = await ctx.prisma.campusRole.create({
+					data: {
+						userId: user.id,
+						campusId: campus.id,
+						role: CampusRoleType.CAMPUS_ADMIN,
+						permissions: [
+							CampusPermission.MANAGE_CAMPUS_CLASSES,
+							CampusPermission.MANAGE_CAMPUS_TEACHERS,
+							CampusPermission.MANAGE_CAMPUS_STUDENTS,
+							CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+							CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+							CampusPermission.VIEW_CAMPUS_ANALYTICS,
+							CampusPermission.VIEW_PROGRAMS,
+							CampusPermission.VIEW_CLASS_GROUPS
+						],
+
+					},
+				});
+
+				console.log('Campus role created:', role.id);
+
+				return campus;
+			} catch (error) {
+				console.error('Error creating campus:', error);
+				throw error;
+			}
 		}),
 
 	getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -158,7 +165,7 @@ export const campusViewRouter = createTRPCRouter({
 					userId: ctx.session.user.id,
 					campusId: input.campusId,
 					permissions: {
-						has: "VIEW_PROGRAMS",
+						has: CampusPermission.VIEW_PROGRAMS,
 					},
 				},
 			});
@@ -185,7 +192,7 @@ export const campusViewRouter = createTRPCRouter({
 					userId: ctx.session.user.id,
 					campusId: input.campusId,
 					permissions: {
-						has: "VIEW_CLASS_GROUPS",
+						has: CampusPermission.VIEW_CLASS_GROUPS,
 					},
 				},
 			});
