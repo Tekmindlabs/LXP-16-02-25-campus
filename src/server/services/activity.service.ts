@@ -1,17 +1,30 @@
 import { PrismaClient } from '@prisma/client';
-import { 
-	ActivityScope, 
-	ActivityStatus, 
-	UnifiedActivity, 
-	FormData 
+import {
+	ActivityScope,
+	ActivityStatus,
+	UnifiedActivity,
+	FormData
 } from '@/types/class-activity';
 
+// Placeholder types
+type ActivityInput = FormData;
+
+interface ActivityFilters {
+	subjectId?: string;
+	classId?: string;
+	curriculumNodeId?: string;
+	scope?: ActivityScope;
+	isTemplate?: boolean;
+}
 export class ActivityService {
+	private activityCache = new Map<string, UnifiedActivity>();
+
 	constructor(
 		private readonly db: PrismaClient
-	) {}
+	) { }
 
-	async createActivity(data: FormData): Promise<UnifiedActivity> {
+	// Renamed original createActivity to createActivity_old
+	async createActivity_old(data: FormData): Promise<UnifiedActivity> {
 		const activity = await this.db.classActivity.create({
 			data: {
 				title: data.title,
@@ -41,6 +54,58 @@ export class ActivityService {
 		}
 
 		return activity as UnifiedActivity;
+	}
+
+	// Enhanced creation method
+	async createActivity(data: ActivityInput): Promise<UnifiedActivity> {
+		const baseActivity = await this.createBaseActivity(data);
+		return data.scope === ActivityScope.CURRICULUM
+			? this.extendForCurriculum(baseActivity)
+			: this.extendForClass(baseActivity);
+	}
+
+	// Placeholder methods for the enhanced service
+	private async createBaseActivity(data: ActivityInput): Promise<UnifiedActivity> {
+		// Replace with actual implementation
+		return this.createActivity_old(data);
+	}
+
+	private async extendForCurriculum(activity: UnifiedActivity): Promise<UnifiedActivity> {
+		// Replace with actual implementation
+		console.log("Extending for curriculum", activity);
+		return activity;
+	}
+
+	private async extendForClass(activity: UnifiedActivity): Promise<UnifiedActivity> {
+		// Replace with actual implementation
+		console.log("Extending for class", activity);
+		return activity;
+	}
+
+	// Optimized query builder
+	private buildOptimizedQuery(filters: ActivityFilters) {
+		return {
+			where: this.buildWhereClause(filters),
+			include: this.getRelevantIncludes(filters),
+			orderBy: { createdAt: 'desc' }
+		};
+	}
+
+	private buildWhereClause(filters: ActivityFilters) {
+		// Replace with actual implementation to build where clause
+		return {
+			...filters
+		}
+	}
+
+	private getRelevantIncludes(filters: ActivityFilters) {
+		// Replace with actual implementation
+		return {
+			subject: true,
+			class: true,
+			resources: true,
+			curriculumNode: true
+		}
 	}
 
 	private async createCurriculumInheritance(activityId: string, subjectId: string) {

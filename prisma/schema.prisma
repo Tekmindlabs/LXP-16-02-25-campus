@@ -655,6 +655,21 @@ model ClassActivity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+    // New fields for enhanced configuration
+  adaptiveLearning Json?
+  interactivity    Json?
+  analytics        Json?
+  
+  // Template related fields
+  isTemplate       Boolean   @default(false)
+  templateId       String?   @map("template_id")
+  template         ClassActivity? @relation("ActivityTemplate", fields: [templateId], references: [id])
+  derivedActivities ClassActivity[] @relation("ActivityTemplate")
+  
+  // Cache related fields
+  cacheKey         String?   @unique
+  cacheExpiry      DateTime?
+
   @@index([classId])
   @@index([subjectId])
   @@index([classGroupId])
@@ -1776,4 +1791,27 @@ model ClassGroupAssessmentSettings {
 
   @@unique([classGroupId, assessmentSystemId])
   @@map("class_group_assessment_settings")
+}
+
+// New model for Activity Templates
+model ActivityTemplate {
+  id               String    @id @default(cuid())
+  title            String
+  description      String?
+  type             String
+  configuration    Json
+  resources        Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// New model for Activity Analytics
+model ActivityAnalytics {
+  id               String    @id @default(cuid())
+  activityId       String
+  activity         ClassActivity @relation(fields: [activityId], references: [id])
+  metrics          Json
+  trackingEnabled  Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
