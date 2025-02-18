@@ -1,15 +1,6 @@
 export interface RoleTemplate {
   name: string;
-  displayName: string;
   description: string;
+  context: 'core' | 'campus';
   permissions: string[];
-  settings: {
-    isDefault: boolean;
-    scope: 'global' | 'campus' | 'program';
-    customizationOptions?: {
-      allowPermissionModification: boolean;
-      allowScopeModification: boolean;
-      requiredPermissions: string[];
-    };
-  };
 }
