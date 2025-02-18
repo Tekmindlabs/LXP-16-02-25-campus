@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, Pencil, Trash } from "lucide-react";
+import { Plus, Pencil, Trash, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { api } from "@/utils/api";
 import {
 	Card,
 	CardContent,
@@ -33,112 +33,97 @@ interface Role {
 	name: string;
 	description: string;
 	context: "core" | "campus";
-	permissions: string[];
+	permissions: Array<{
+		permission: {
+			id: string;
+			name: string;
+		}
+	}>;
 }
 
 export default function UnifiedRoleManagement() {
-	const [roles, setRoles] = useState<Role[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
+	const { data: roles = [], isLoading } = api.role.getAll.useQuery();
 	const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 	const [contextFilter, setContextFilter] = useState<"all" | "core" | "campus">("all");
 	const { toast } = useToast();
 
-	const fetchRoles = async () => {
-		try {
-			setIsLoading(true);
-			// TODO: Implement API call to fetch roles
-			const mockRoles: Role[] = [
-				{ id: "1", name: "Admin", description: "Administrator role", context: "core", permissions: ["*"] },
-				{ id: "2", name: "Teacher", description: "Teacher role", context: "core", permissions: ["teach"] },
-				{ id: "3", name: "Student", description: "Student role", context: "core", permissions: ["learn"] },
-				{ id: "4", name: "Campus Admin", description: "Campus Administrator role", context: "campus", permissions: ["*"] },
-			];
-			setRoles(mockRoles);
-		} catch (error) {
-			toast({
-				variant: "destructive",
-				title: "Error",
-				description: "Failed to fetch roles. Please try again.",
-			});
-		} finally {
-			setIsLoading(false);
-		}
-	};
+	const utils = api.useContext();
 
-	// Create new role
-	const createRole = async (roleData: Omit<Role, "id">) => {
-		try {
-			setIsLoading(true);
-			// TODO: Implement API call to create role
-			// const response = await fetch('/api/roles', {
-			//   method: 'POST',
-			//   body: JSON.stringify(roleData)
-			// });
-			// const newRole = await response.json();
-			// setRoles([...roles, newRole]);
+	const createRoleMutation = api.role.create.useMutation({
+		onSuccess: () => {
+			utils.role.getAll.invalidate();
 			toast({
 				title: "Success",
 				description: "Role created successfully",
 			});
-		} catch (error) {
+		},
+		onError: (error: Error) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
-				description: "Failed to create role. Please try again.",
+				description: error.message,
 			});
-		} finally {
-			setIsLoading(false);
-		}
-	};
+		},
+	});
 
-	// Update existing role
-	const updateRole = async (roleId: string, roleData: Partial<Role>) => {
-		try {
-			setIsLoading(true);
-			// TODO: Implement API call to update role
-			// const response = await fetch(`/api/roles/${roleId}`, {
-			//   method: 'PUT',
-			//   body: JSON.stringify(roleData)
-			// });
-			// const updatedRole = await response.json();
-			// setRoles(roles.map(role => role.id === roleId ? updatedRole : role));
+	const updateRoleMutation = api.role.update.useMutation({
+		onSuccess: () => {
+			utils.role.getAll.invalidate();
 			toast({
 				title: "Success",
 				description: "Role updated successfully",
 			});
-		} catch (error) {
+		},
+		onError: (error: Error) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
-				description: "Failed to update role. Please try again.",
+				description: error.message,
 			});
-		} finally {
-			setIsLoading(false);
-		}
-	};
+		},
+	});
 
-	// Delete role
-	const deleteRole = async (roleId: string) => {
-		try {
-			setIsLoading(true);
-			// TODO: Implement API call to delete role
-			// await fetch(`/api/roles/${roleId}`, {
-			//   method: 'DELETE'
-			// });
-			// setRoles(roles.filter(role => role.id !== roleId));
+	const deleteRoleMutation = api.role.delete.useMutation({
+		onSuccess: () => {
+			utils.role.getAll.invalidate();
 			toast({
 				title: "Success",
 				description: "Role deleted successfully",
 			});
-		} catch (error) {
+		},
+		onError: (error: Error) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
-				description: "Failed to delete role. Please try again.",
+				description: error.message,
 			});
-		} finally {
-			setIsLoading(false);
-		}
+		},
+	});
+
+	// Create new role
+	const handleCreateRole = (roleData: Omit<Role, "id">) => {
+		createRoleMutation.mutate({
+			name: roleData.name,
+			description: roleData.description,
+			permissionIds: roleData.permissions.map((p) => p.permission.id),
+		});
+	};
+
+	// Update existing role
+	const handleUpdateRole = (roleId: string, roleData: Partial<Role>) => {
+		updateRoleMutation.mutate({
+			id: roleId,
+			data: {
+				name: roleData.name,
+				description: roleData.description,
+				permissionIds: roleData.permissions?.map((p) => p.permission.id),
+			},
+		});
+	};
+
+	// Delete role
+	const handleDeleteRole = (roleId: string) => {
+		deleteRoleMutation.mutate(roleId);
 	};
 
 	const filteredRoles = roles.filter((role) =>
@@ -226,7 +211,7 @@ export default function UnifiedRoleManagement() {
 													variant="ghost"
 													size="icon"
 													className="text-destructive"
-													onClick={() => deleteRole(role.id)}
+													onClick={() => handleDeleteRole(role.id)}
 												>
 													<Trash className="w-4 h-4" />
 												</Button>

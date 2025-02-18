@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { api } from "@/utils/api";
 import {
   Form,
   FormControl,
@@ -10,6 +11,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +21,7 @@ const roleFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   context: z.enum(["core", "campus"]),
+  permissions: z.array(z.string()),
 });
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
@@ -28,6 +31,7 @@ interface RoleFormProps {
     name: string;
     description: string;
     context: "core" | "campus";
+    permissions: string[];
   };
   onSubmit: (data: RoleFormValues) => void;
   onCancel: () => void;
@@ -40,6 +44,7 @@ export function RoleForm({
   onCancel,
   isLoading = false,
 }: RoleFormProps) {
+  const { data: permissions } = api.permission.getAll.useQuery();
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: initialData || {
@@ -52,6 +57,55 @@ export function RoleForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="permissions"
+          render={() => (
+            <FormItem>
+              <div className="mb-4">
+                <FormLabel className="text-base">Permissions</FormLabel>
+                <FormDescription>
+                  Select the permissions for this role
+                </FormDescription>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {permissions?.map((permission) => (
+                  <FormField
+                    key={permission.id}
+                    control={form.control}
+                    name="permissions"
+                    render={({ field }) => {
+                      return (
+                        <FormItem
+                          key={permission.id}
+                          className="flex flex-row items-start space-x-3 space-y-0"
+                        >
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(permission.id)}
+                              onCheckedChange={(checked) => {
+                                return checked
+                                  ? field.onChange([...field.value, permission.id])
+                                  : field.onChange(
+                                      field.value?.filter((value) => value !== permission.id)
+                                    );
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            {permission.name}
+                          </FormLabel>
+                        </FormItem>
+                      );
+                    }}
+                  />
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="name"

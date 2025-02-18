@@ -22,6 +22,7 @@ interface RoleFormProps {
     type: 'core' | 'campus';
     description: string;
     permissions: string[];
+    campusId?: string;
   };
   onSuccess?: () => void;
 }
@@ -32,6 +33,9 @@ export const RoleForm = ({ mode, initialData, onSuccess }: RoleFormProps) => {
     name: initialData?.name || '',
     type: initialData?.type || 'core',
     description: initialData?.description || '',
+    campusId: initialData?.campusId || '',
+    permissions: {} as Record<string, string[]>,
+    resourceType: 'role'
   });
 
   const { toast } = useToast();
@@ -57,10 +61,15 @@ export const RoleForm = ({ mode, initialData, onSuccess }: RoleFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const submitData = {
+      ...formData,
+      campusId: formData.type === 'campus' ? formData.campusId : '',
+    };
+    
     if (mode === 'create') {
-      createRole.mutate(formData);
+      createRole.mutate(submitData);
     } else if (initialData?.id) {
-      updateRole.mutate({ id: initialData.id, ...formData });
+      updateRole.mutate(submitData);
     }
   };
 
