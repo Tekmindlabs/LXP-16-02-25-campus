@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Plus, Pencil, Trash } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -151,77 +154,81 @@ export default function UnifiedRoleManagement() {
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<div className="space-y-4">
-					<div className="flex justify-between items-center">
-						<Select
-							value={contextFilter}
-							onValueChange={(value: "all" | "core" | "campus") => setContextFilter(value)}
-						>
-							<SelectTrigger className="w-[180px]">
-								<SelectValue placeholder="Filter by context" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Roles</SelectItem>
-								<SelectItem value="core">Core Roles</SelectItem>
-								<SelectItem value="campus">Campus Roles</SelectItem>
-							</SelectContent>
-						</Select>
-						<Button onClick={() => setSelectedRole(null)}>Create New Role</Button>
-					</div>
+				<div className="flex justify-between items-center mb-6">
+					<Select
+						value={contextFilter}
+						onValueChange={(value) => setContextFilter(value as typeof contextFilter)}
+					>
+						<SelectTrigger className="w-[180px]">
+							<SelectValue placeholder="Filter by context" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Roles</SelectItem>
+							<SelectItem value="core">Core Roles</SelectItem>
+							<SelectItem value="campus">Campus Roles</SelectItem>
+						</SelectContent>
+					</Select>
+					<Button
+						variant="default"
+						className="ml-4"
+						onClick={() => setSelectedRole({} as Role)}
+					>
+						<Plus className="w-4 h-4 mr-2" />
+						Create New Role
+					</Button>
+				</div>
 
-					{selectedRole ? (
-						<RoleForm
-							initialData={selectedRole}
-							onSubmit={(data) => updateRole(selectedRole.id, data)}
-							onCancel={() => setSelectedRole(null)}
-						/>
-					) : (
-						<RoleForm onSubmit={createRole} onCancel={() => setSelectedRole(null)} />
-					)}
-
+				<div className="rounded-md border">
 					<Table>
 						<TableHeader>
 							<TableRow>
 								<TableHead>Name</TableHead>
-								<TableHead>Description</TableHead>
 								<TableHead>Context</TableHead>
-								<TableHead>Actions</TableHead>
+								<TableHead>Description</TableHead>
+								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
 									<TableCell colSpan={4} className="text-center">
-										Loading...
+										<div className="flex items-center justify-center py-4">
+											<Loader2 className="w-6 h-6 animate-spin" />
+										</div>
 									</TableCell>
 								</TableRow>
 							) : filteredRoles.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={4} className="text-center">
+									<TableCell colSpan={4} className="text-center py-6">
 										No roles found
 									</TableCell>
 								</TableRow>
 							) : (
 								filteredRoles.map((role) => (
 									<TableRow key={role.id}>
-										<TableCell>{role.name}</TableCell>
-										<TableCell>{role.description}</TableCell>
-										<TableCell>{role.context}</TableCell>
+										<TableCell className="font-medium">{role.name}</TableCell>
 										<TableCell>
-											<div className="space-x-2">
+											<Badge variant={role.context === "core" ? "default" : "secondary"}>
+												{role.context}
+											</Badge>
+										</TableCell>
+										<TableCell>{role.description}</TableCell>
+										<TableCell className="text-right">
+											<div className="flex justify-end gap-2">
 												<Button
-													variant="outline"
-													size="sm"
+													variant="ghost"
+													size="icon"
 													onClick={() => setSelectedRole(role)}
 												>
-													Edit
+													<Pencil className="w-4 h-4" />
 												</Button>
 												<Button
-													variant="destructive"
-													size="sm"
+													variant="ghost"
+													size="icon"
+													className="text-destructive"
 													onClick={() => deleteRole(role.id)}
 												>
-													Delete
+													<Trash className="w-4 h-4" />
 												</Button>
 											</div>
 										</TableCell>
