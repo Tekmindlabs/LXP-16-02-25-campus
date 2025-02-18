@@ -10,6 +10,7 @@ export const Permissions = {
   ROLE_READ: "role:read",
   ROLE_UPDATE: "role:update",
   ROLE_DELETE: "role:delete",
+  ROLE_CAMPUS_ASSIGN: "role:campus-assign",
   
   // Permission management
   PERMISSION_MANAGE: "permission:manage",

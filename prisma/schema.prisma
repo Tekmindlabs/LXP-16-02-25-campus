@@ -1147,13 +1147,22 @@ model Role {
   id          String           @id @default(cuid())
   name        String           @unique
   description String?
+  type        RoleType         @default(CAMPUS) // Add role type field
+  parentId    String?
+  parent      Role?            @relation("RoleHierarchy", fields: [parentId], references: [id])
+  children    Role[]           @relation("RoleHierarchy")
   userRoles   UserRole[]
   permissions RolePermission[]
   campusRoles CampusRole[]
   createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  updatedAt   DateTime         @default(now())
 
   @@map("roles")
+}
+
+enum RoleType {
+  CORE
+  CAMPUS
 }
 
 model Permission {
