@@ -1,14 +1,23 @@
 {
   "name": "base-instructor",
-  "description": "Standard instructor role with content creation and grade management permissions",
+  "displayName": "Base Instructor",
+  "description": "Template for instructor roles with basic permissions",
   "permissions": [
-    "content:create",
-    "content:publish",
-    "grades:manage",
-    "attendance:modify"
+    "view-classes",
+    "manage-assignments",
+    "grade-students",
+    "view-students"
   ],
   "settings": {
-    "scope": "program",
-    "isDefault": false
+    "isDefault": true,
+    "scope": "campus",
+    "customizationOptions": {
+      "allowPermissionModification": true,
+      "allowScopeModification": false,
+      "requiredPermissions": [
+        "view-classes",
+        "view-students"
+      ]
+    }
   }
 }
