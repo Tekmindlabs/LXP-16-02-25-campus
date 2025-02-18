@@ -1,228 +1,150 @@
-I'll review the roles and permissions control implementation and provide recommendations for finalizing the system.
+Based on the existing codebase and provided files, let me give you more aligned instructions for implementing role permissions:
 
-Current Implementation Overview:
-
-1. Permission System:
+1. **Update SuperAdminSidebar.tsx**
 ```typescript
-// /src/utils/permissions.ts
-export const Permissions = {
-  // Granular permissions for different features
-  USER_CREATE: "user:create",
-  USER_READ: "user:read",
-  // ... other permissions
-}
+// In src/components/dashboard/roles/super-admin/layout/SuperAdminSidebar.tsx
 
-export const RolePermissions: Record<DefaultRoles, Permission[]> = {
-  [DefaultRoles.SUPER_ADMIN]: [...Object.values(Permissions)],
-  [DefaultRoles.ADMIN]: [
-    Permissions.USER_CREATE,
-    Permissions.USER_READ,
-    // ... limited permissions
-  ],
-  // ... other role permissions
-}
+// Add to the existing menuItems array
+{
+  title: "Roles & Permissions",
+  href: "/dashboard/super-admin/settings/roles", // Note the direct super-admin path
+  icon: LuShieldCheck, // Import from react-icons/lu
+},
 ```
 
-2. Role Management:
+2. **Create Role Management Page**
+Create a new file at `src/app/dashboard/super-admin/settings/roles/page.tsx`:
 ```typescript
-// /src/server/api/routers/role.ts
-export const roleRouter = createTRPCRouter({
-  getAll: permissionProtectedProcedure(Permissions.ROLE_READ),
-  create: permissionProtectedProcedure(Permissions.ROLE_CREATE),
-  // ... other role operations
-});
-```
+import { UnifiedRoleManagement } from "@/components/dashboard/UnifiedRoleManagement";
+import { Card } from "@/components/ui/card";
 
-Recommendations for Completion:
-
-1. Role Management UI:
-```typescript
-// New component: /src/components/dashboard/roles/RoleManagement.tsx
-import { useState } from 'react';
-import { api } from '@/utils/api';
-
-export const RoleManagement = () => {
-  const [selectedRole, setSelectedRole] = useState(null);
-  
+export default function RolesPage() {
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Role Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Role List */}
-          <div className="grid gap-4">
-            {roles.map(role => (
-              <RoleCard 
-                key={role.id}
-                role={role}
-                onEdit={() => setSelectedRole(role)}
-              />
-            ))}
-          </div>
-          
-          {/* Permission Assignment */}
-          <PermissionMatrix 
-            role={selectedRole}
-            permissions={availablePermissions}
-            onUpdate={handlePermissionUpdate}
-          />
-        </CardContent>
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Roles & Permissions</h1>
+        <p className="text-muted-foreground">
+          Manage system and campus roles and their permissions
+        </p>
+      </div>
+      <Card className="p-6">
+        <UnifiedRoleManagement />
       </Card>
     </div>
   );
-};
-```
-
-2. Role-Based Portal Router:
-```typescript
-// /src/components/dashboard/RoleBasedRouter.tsx
-const RoleBasedRouter = () => {
-  const { user } = useSession();
-  
-  const getPortalComponent = () => {
-    if (hasRole(user.roles, DefaultRoles.SUPER_ADMIN)) {
-      return <SuperAdminPortal />;
-    }
-    if (hasRole(user.roles, DefaultRoles.TEACHER)) {
-      return <TeacherPortal />;
-    }
-    // ... other role portals
-  };
-
-  return (
-    <div>
-      {getPortalComponent()}
-    </div>
-  );
-};
-```
-
-3. Permission Check Component:
-```typescript
-// /src/components/common/PermissionGate.tsx
-interface PermissionGateProps {
-  permission: Permission;
-  children: React.ReactNode;
 }
-
-export const PermissionGate = ({ permission, children }: PermissionGateProps) => {
-  const { user } = useSession();
-  const hasPermission = useHasPermission(permission);
-
-  if (!hasPermission) return null;
-  
-  return <>{children}</>;
-};
 ```
 
-4. Role-Based Navigation:
+3. **The RoleForm Component**
+Your existing `RoleForm.tsx` is already well-structured with:
+- Form validation using react-hook-form and zod
+- Permission selection using checkboxes
+- Context selection (core/campus)
+- Proper form controls and error handling
+
+4. **Update UnifiedRoleManagement Component**
+Your existing component already has:
+- Role listing with context filtering
+- CRUD operations
+- Toast notifications
+- Loading states
+
+5. **Add Required API Routes**
+Make sure these routes are defined in your `src/server/api/routers/role.ts`:
 ```typescript
-// Update SuperAdminSidebar.tsx
-const SuperAdminSidebar = () => {
-  const { user } = useSession();
-  
-  const filteredMenuItems = menuItems.filter(item => {
-    return item.requiredPermissions.some(permission => 
-      user.permissions.includes(permission)
-    );
-  });
-
-  return (
-    <div className="sidebar">
-      {filteredMenuItems.map(item => (
-        <PermissionGate key={item.href} permission={item.requiredPermission}>
-          <SidebarItem {...item} />
-        </PermissionGate>
-      ))}
-    </div>
-  );
-};
-```
-
-5. Enhanced Permission Management:
-```typescript
-// New service: /src/server/services/PermissionService.ts
-export class PermissionService {
-  constructor(private prisma: PrismaClient) {}
-
-  async assignPermissionsToRole(roleId: string, permissions: string[]) {
-    return this.prisma.role.update({
-      where: { id: roleId },
-      data: {
-        permissions: {
-          set: permissions.map(id => ({ id }))
-        }
-      }
-    });
-  }
-
-  async getUserPermissions(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+export const roleRouter = createTRPCRouter({
+  getAll: protectedProcedure.query(({ ctx }) => {
+    return ctx.prisma.role.findMany({
       include: {
-        roles: {
+        permissions: {
           include: {
-            permissions: true
-          }
-        }
-      }
+            permission: true,
+          },
+        },
+      },
     });
-    
-    return user?.roles.flatMap(role => role.permissions) ?? [];
-  }
-}
+  }),
+
+  create: protectedProcedure
+    .input(roleFormSchema)
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.role.create({
+        data: {
+          name: input.name,
+          description: input.description,
+          context: input.context,
+          permissions: {
+            create: input.permissions.map((permissionId) => ({
+              permission: {
+                connect: { id: permissionId },
+              },
+            })),
+          },
+        },
+      });
+    }),
+
+  // Add other existing routes
+});
 ```
 
-6. Personalization Features:
+6. **Testing Flow**:
 ```typescript
-// New component: /src/components/dashboard/PersonalizedDashboard.tsx
-export const PersonalizedDashboard = () => {
-  const { user } = useSession();
-  const { data: preferences } = api.user.getPreferences.useQuery();
-
-  return (
-    <div className="dashboard">
-      <WelcomeSection user={user} />
-      <QuickActions permissions={user.permissions} />
-      <RecentActivity userId={user.id} />
-      <CustomizableWidgets 
-        preferences={preferences}
-        onUpdate={handlePreferencesUpdate}
-      />
-    </div>
-  );
+// Test data for creating a role
+const testRole = {
+  name: "Campus Teacher",
+  description: "Standard teacher role for campus operations",
+  context: "campus",
+  permissions: [
+    "VIEW_CLASSES",
+    "MANAGE_ATTENDANCE",
+    "VIEW_STUDENTS"
+  ]
 };
 ```
 
-Implementation Steps:
+7. **Permission Check Implementation**:
+```typescript
+// In your UnifiedRoleManagement.tsx
+const { hasPermission } = usePermissions();
 
-1. Create the role management UI with permission matrix
-2. Implement role-based routing system
-3. Add PermissionGate component for granular access control
-4. Update navigation components to respect permissions
-5. Enhance permission service with additional features
-6. Add personalization features to dashboards
-7. Implement user preference management
-8. Add role-based analytics and reporting
-9. Create comprehensive documentation
-10. Add thorough testing for permission checks
+// Check before operations
+{hasPermission('ROLE_MANAGE') && (
+  <Button onClick={() => setShowCreateForm(true)}>
+    <Plus className="mr-2 h-4 w-4" />
+    Create Role
+  </Button>
+)}
+```
 
-This implementation provides:
-- Granular permission control
-- Role-based access management
-- Personalized user experience
-- Secure routing and navigation
-- Flexible permission assignment
-- User preference management
+8. **File Structure Verification**:
+```
+src/
+├── app/
+│   └── dashboard/
+│       └── super-admin/
+│           └── settings/
+│               └── roles/
+│                   └── page.tsx
+├── components/
+│   └── dashboard/
+│       ├── UnifiedRoleManagement.tsx (existing)
+│       ├── RoleForm.tsx (existing)
+│       └── roles/
+│           └── super-admin/
+│               └── layout/
+│                   └── SuperAdminSidebar.tsx (update)
+└── server/
+    └── api/
+        └── routers/
+            └── role.ts
+```
 
-The system can be further enhanced with:
-- Role hierarchies
-- Permission inheritance
-- Temporary permission grants
-- Activity logging
-- Permission audit trails
-- Dynamic permission updates
+This implementation aligns with your existing codebase and maintains consistency with your current patterns. The components are already well-structured - we just need to:
 
-Would you like me to elaborate on any specific aspect of this implementation?
+1. Add the sidebar menu item
+2. Create the page component
+3. Verify API routes
+4. Test the complete flow
+
+No need to create new form components as your existing ones already handle the requirements effectively.
