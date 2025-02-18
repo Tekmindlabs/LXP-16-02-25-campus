@@ -13,7 +13,8 @@ import {
 	ActivityResource
 } from "@/types/class-activity";
 import { Prisma } from "@prisma/client";
-
+import { z as zod } from 'zod';
+import { ActivityMode as ActivityModeEnum, ActivityScope, ActivityStatus as ActivityStatusEnum, ActivityType } from '@/types/class-activity';
 const configurationSchema = z.object({
 	activityMode: z.nativeEnum(ActivityMode),
 	isGraded: z.boolean(),
@@ -46,9 +47,68 @@ const resourceSchema = z.object({
 		publicUrl: z.string()
 	}).optional()
 });
-
-
-
+const baseConfigSchema = zod.object({
+  activityMode: zod.nativeEnum(ActivityModeEnum),
+  isGraded: zod.boolean(),
+  adaptiveLearning: zod.object({
+    difficultyLevel: zod.number(),
+    autoAdjust: zod.boolean()
+  }).optional(),
+  interactivity: zod.object({
+    realTimeCollaboration: zod.boolean(),
+    peerReview: zod.boolean()
+  }).optional(),
+  analytics: zod.object({
+    trackingEnabled: zod.boolean(),
+    metrics: zod.array(zod.string())
+  }).optional()
+});
+const activityInputSchema = zod.object({
+  title: zod.string().min(1),
+  description: zod.string(),
+  type: zod.nativeEnum(ActivityType),
+  scope: zod.nativeEnum(ActivityScope),
+  isTemplate: zod.boolean().optional(),
+  subjectId: zod.string().optional(),
+  classId: zod.string().optional(),
+  curriculumNodeId: zod.string().optional(),
+  configuration: baseConfigSchema,
+  resources: zod.array(zod.object({
+    type: zod.string(),
+    url: zod.string().url()
+  })).optional()
+});
+const configurationSchema = z.object({
+  activityMode: z.nativeEnum(ActivityMode),
+  isGraded: z.boolean(),
+  adaptiveLearning: z.object({
+    difficultyLevel: z.number(),
+    autoAdjust: z.boolean()
+  }).optional(),
+  interactivity: z.object({
+    realTimeCollaboration: z.boolean(),
+    peerReview: z.boolean()
+  }).optional(),
+  analytics: z.object({
+    trackingEnabled: z.boolean(),
+    metrics: z.array(z.string())
+  }).optional()
+});
+const activityInputSchema = z.object({
+  title: z.string().min(1),
+  description: z.string(),
+  type: z.nativeEnum(ActivityType),
+  scope: z.nativeEnum(ActivityScope),
+  isTemplate: z.boolean().optional(),
+  subjectId: z.string().optional(),
+  classId: z.string().optional(),
+  curriculumNodeId: z.string().optional(),
+  configuration: configurationSchema,
+  resources: z.array(z.object({
+    type: z.string(),
+    url: z.string().url()
+  })).optional()
+});
 export const classActivityRouter = createTRPCRouter({
 	create: protectedProcedure
 		.input(z.object({

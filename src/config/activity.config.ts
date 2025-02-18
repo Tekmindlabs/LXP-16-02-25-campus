@@ -5,7 +5,7 @@ export const activityConfig = {
   },
   analytics: {
     defaultMetrics: ['completion', 'timeSpent', 'score'],
-    trackingInterval: 5000, // 5 seconds
+    trackingInterval: 5000,
   },
   template: {
     allowedTypes: ['QUIZ', 'ASSIGNMENT', 'PROJECT'],

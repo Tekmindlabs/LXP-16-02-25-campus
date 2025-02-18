@@ -118,44 +118,60 @@ interface Props {
 
 // Implement ActivityFormManager
 const ActivityFormManager = {
-  baseFields: ['title', 'description', 'type'],
-  curriculumExtension: ['learningObjectives', 'prerequisites'],
-  classExtension: ['deadline', 'classGroups'],
+  baseFields: ['title', 'description', 'type'] as const,
+  curriculumExtension: ['learningObjectives', 'prerequisites'] as const,
+  classExtension: ['deadline', 'classGroups'] as const,
 
-  validateCommon(data: any) {
-    // Common validation logic
-  },
-  validateScope(data: any, scope: ActivityScope) {
-    // Scope-specific validation
-  },
-    getDefaultValues() {
-        return {
-            title: "",
-            description: "",
-            type: ActivityType.CLASS_ASSIGNMENT,
-            classId: undefined,
-            subjectIds: [],
-            teacherAssignments: [],
-            classGroupId: undefined,
-            inheritCalendar: true,
-
-            configuration: {
-                activityMode: ActivityMode.IN_CLASS,
-                isGraded: true,
-                totalMarks: 100,
-                passingMarks: 40,
-                gradingType: ActivityGradingType.MANUAL,
-                availabilityDate: new Date(),
-                deadline: new Date(),
-                instructions: "",
-                timeLimit: undefined,
-                attempts: undefined,
-                viewType: ActivityViewType.STUDENT,
-                autoGradingConfig: undefined
-            },
-            resources: [],
-        }
+  validateCommon(data: FormData) {
+    const errors: Record<string, string> = {};
+    
+    if (!data.title?.trim()) {
+      errors.title = 'Title is required';
     }
+    
+    if (!data.type) {
+      errors.type = 'Activity type is required';
+    }
+    
+    return errors;
+  },
+
+  validateScope(data: FormData, scope: ActivityScope) {
+    const errors: Record<string, string> = {};
+    
+    if (scope === ActivityScope.CURRICULUM && !data.subjectIds?.length) {
+      errors.subjectIds = 'At least one subject is required for curriculum activities';
+    }
+    
+    if (scope === ActivityScope.CLASS && !data.classId) {
+      errors.classId = 'Class is required for class activities';
+    }
+    
+    return errors;
+  },
+
+  getDefaultValues(): FormData {
+    return {
+      title: '',
+      description: '',
+      type: ActivityType.ASSIGNMENT,
+      subjectIds: [],
+      teacherAssignments: [],
+      inheritCalendar: true,
+      configuration: {
+        activityMode: ActivityMode.INDIVIDUAL,
+        isGraded: false,
+        totalMarks: 100,
+        passingMarks: 40,
+        gradingType: ActivityGradingType.NUMERIC,
+        availabilityDate: new Date(),
+        deadline: new Date(),
+        viewType: ActivityViewType.SEQUENTIAL,
+        instructions: '',
+      },
+      resources: []
+    };
+  }
 };
 
 const ClassActivityForm: React.FC<Props> = ({ activityId, onClose }) => {
