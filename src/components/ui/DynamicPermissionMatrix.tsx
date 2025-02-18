@@ -44,6 +44,7 @@ interface DynamicPermissionMatrixProps {
     permissions: string[];
   }>;
   onTemplateSelect: (templateName: string) => void;
+  initialPermissions: Record<string, Set<string>>;
 }
 
 export const DynamicPermissionMatrix = ({
@@ -52,10 +53,11 @@ export const DynamicPermissionMatrix = ({
   campuses,
   resourceType,
   templates,
-  onTemplateSelect
+  onTemplateSelect,
+  initialPermissions,
 }: DynamicPermissionMatrixProps) => {
   const { toast } = useToast();
-  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, Set<string>>>({});
+  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, Set<string>>>(initialPermissions || {});
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [selectedCampus, setSelectedCampus] = useState<string>();

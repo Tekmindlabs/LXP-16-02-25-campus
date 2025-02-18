@@ -6,46 +6,72 @@ import { CampusPermission } from '@/types/campus';
 const t = initTRPC.context<Context>().create();
 const middleware = t.middleware;
 
-export const checkCampusPermission = (requiredPermission: CampusPermission, campusId?: string) => {
-	return middleware(async ({ ctx, next }) => {
-		if (!ctx.session?.user?.id) {
-			throw new TRPCError({
-				code: 'UNAUTHORIZED',
-				message: 'You must be logged in to access this resource',
-			});
-		}
+export const checkCampusPermission = (requiredPermission: CampusPermission, campusId?: string) => middleware(async ({ ctx, next }) => {
+  if (!ctx.session?.user?.id) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to access this resource',
+    });
+  }
 
-		const whereClause = {
-			userId: ctx.session.user.id,
-			permissions: {
-				has: requiredPermission,
-			},
-		} as any; // Explicitly cast to 'any' to allow conditional property
+  // Define whereClause to find RolePermission
+  // Define whereClause to find CampusRole
+  const whereClause = {
+    CampusRole: {
+      some: {
+        campusId: campusId ?? null,
+        role: {
+          permissions: {
+            some: {
+              permission: {
+                name: requiredPermission,
+              },
+            },
+          },
+        },
+      },
+    },
+  } as any;
 
-		if (campusId) {
-			whereClause.campusId = campusId;
-		}
+  // Fetch CampusRole
+  const campusRole = await ctx.prisma.user.findFirst({
+    where: {
+      id: ctx.session.user.id,
+      ...whereClause,
+    },
+    include: {
+      CampusRole: {
+        include: {
+          role: { // Access role through CampusRole relation
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 
+  // Check if campusRole exists
+  if (!campusRole) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to access this resource',
+    });
+  }
 
-		const campusRole = await ctx.prisma.campusRole.findFirst({
-			where: whereClause,
-		});
-
-		if (!campusRole) {
-			throw new TRPCError({
-				code: 'FORBIDDEN',
-				message: 'You do not have permission to access this resource',
-			});
-		}
-
-		return next({
-			ctx: {
-				...ctx,
-				campusRole,
-			},
-		});
-	});
-};
+  // Extend context and proceed
+  return next({
+    ctx: {
+      ...ctx,
+      campusRole, // Pass campusRole to context
+    },
+  });
+});
 
 export const protectedCampusRoute = middleware(async ({ ctx, next }) => {
 	if (!ctx.session?.user?.id) {

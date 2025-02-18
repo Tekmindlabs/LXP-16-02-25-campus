@@ -85,6 +85,7 @@ model Campus {
   features  CampusFeature[]
   sync      CampusSync?
   classes   Class[]
+  rolePermissions RolePermission[] // Add relation to RolePermission
 
   // Audit fields
   createdAt DateTime @default(now())
@@ -95,35 +96,34 @@ model Campus {
 
 // Campus Role and Permission Models
 model CampusRole {
-  id          String   @id @default(cuid())
-  userId      String
-  campusId    String
-  role        String
-  permissions String[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  campusId  String
+  roleId    String // Foreign key for Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user   User   @relation(fields: [userId], references: [id])
   campus Campus @relation(fields: [campusId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id]) // Relation to Role model
 
-  @@unique([userId, campusId])
   @@map("campus_roles")
 }
 
-model CampusFeature {
-  id          String    @id @default(cuid())
-  campusId    String
-  featureKey  String
-  status      Status
-  enableAfter DateTime?
-  enabledAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+model RolePermission {
+  id           String   @id @default(cuid())
+  campusRoleId String // Foreign key to CampusRole
+  permissionId String
+  campusId     String?   // Add campusId field - optional for global role permissions
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  campus Campus @relation(fields: [campusId], references: [id])
+  campusRole CampusRole @relation(fields: [campusRoleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  campus     Campus?    @relation(fields: [campusId], references: [id]) // Relation to Campus
 
-  @@unique([campusId, featureKey])
-  @@map("campus_features")
+  @@unique([campusRoleId, permissionId, campusId]) // Unique constraint including campusId
+  @@map("role_permissions")
 }
 
 model CampusSync {
