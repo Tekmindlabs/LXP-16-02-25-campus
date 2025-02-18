@@ -110,21 +110,7 @@ model CampusRole {
   @@map("campus_roles")
 }
 
-model RolePermission {
-  id           String   @id @default(cuid())
-  campusRoleId String // Foreign key to CampusRole
-  permissionId String
-  campusId     String?   // Add campusId field - optional for global role permissions
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
 
-  campusRole CampusRole @relation(fields: [campusRoleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  campus     Campus?    @relation(fields: [campusId], references: [id]) // Relation to Campus
-
-  @@unique([campusRoleId, permissionId, campusId]) // Unique constraint including campusId
-  @@map("role_permissions")
-}
 
 model CampusSync {
   id           String   @id @default(cuid())
@@ -1163,6 +1149,7 @@ model Role {
   description String?
   userRoles   UserRole[]
   permissions RolePermission[]
+  campusRoles CampusRole[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -1194,6 +1181,22 @@ model RolePermission {
 
   @@unique([roleId, permissionId, campusId]) // Update unique constraint to include campusId
   @@map("role_permissions")
+}
+
+model CampusFeature {
+  id          String   @id @default(cuid())
+  campusId    String
+  featureKey  String
+  status      Status   @default(ACTIVE)
+  enableAfter DateTime?
+  enabledAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campus      Campus   @relation(fields: [campusId], references: [id])
+
+  @@unique([campusId, featureKey])
+  @@map("campus_features")
 }
 
 enum UserType {
