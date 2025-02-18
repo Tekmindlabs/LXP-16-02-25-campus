@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique identifier for the role template"
+    },
+    "description": {
+      "type": "string",
+      "description": "Template description displayed to users"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "user:create",
+          "user:read",
+          "user:update",
+          "content:create",
+          "content:publish",
+          "grades:manage",
+          "attendance:modify"
+        ]
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "isDefault": {
+          "type": "boolean",
+          "default": false
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["global", "campus", "program"]
+        }
+      },
+      "required": ["scope"]
+    }
+  },
+  "required": ["name", "permissions", "settings"]
+}

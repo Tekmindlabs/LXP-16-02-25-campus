@@ -1184,13 +1184,15 @@ model RolePermission {
   id           String   @id @default(cuid())
   roleId       String
   permissionId String
+  campusId     String? // Add campusId field
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  campus     Campus?    @relation(fields: [campusId], references: [id]) // Add campus relation
 
-  @@unique([roleId, permissionId])
+  @@unique([roleId, permissionId, campusId]) // Update unique constraint to include campusId
   @@map("role_permissions")
 }
 

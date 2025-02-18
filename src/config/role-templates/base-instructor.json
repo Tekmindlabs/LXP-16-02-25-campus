@@ -1,0 +1,14 @@
+{
+  "name": "base-instructor",
+  "description": "Standard instructor role with content creation and grade management permissions",
+  "permissions": [
+    "content:create",
+    "content:publish",
+    "grades:manage",
+    "attendance:modify"
+  ],
+  "settings": {
+    "scope": "program",
+    "isDefault": false
+  }
+}

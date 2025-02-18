@@ -6,7 +6,7 @@ import { CampusPermission } from '@/types/campus';
 const t = initTRPC.context<Context>().create();
 const middleware = t.middleware;
 
-export const checkCampusPermission = (requiredPermission: CampusPermission) => {
+export const checkCampusPermission = (requiredPermission: CampusPermission, campusId?: string) => {
 	return middleware(async ({ ctx, next }) => {
 		if (!ctx.session?.user?.id) {
 			throw new TRPCError({
@@ -15,13 +15,20 @@ export const checkCampusPermission = (requiredPermission: CampusPermission) => {
 			});
 		}
 
-		const campusRole = await ctx.prisma.campusRole.findFirst({
-			where: {
-				userId: ctx.session.user.id,
-				permissions: {
-					has: requiredPermission,
-				},
+		const whereClause = {
+			userId: ctx.session.user.id,
+			permissions: {
+				has: requiredPermission,
 			},
+		} as any; // Explicitly cast to 'any' to allow conditional property
+
+		if (campusId) {
+			whereClause.campusId = campusId;
+		}
+
+
+		const campusRole = await ctx.prisma.campusRole.findFirst({
+			where: whereClause,
 		});
 
 		if (!campusRole) {
@@ -68,4 +75,3 @@ export const protectedCampusRoute = middleware(async ({ ctx, next }) => {
 		},
 	});
 });
-
