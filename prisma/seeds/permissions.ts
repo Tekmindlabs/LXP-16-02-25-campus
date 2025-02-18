@@ -109,15 +109,17 @@ export async function seedPermissions(prisma: PrismaClient) {
 
 				return prisma.rolePermission.upsert({
 					where: {
-						roleId_permissionId: {
+						roleId_permissionId_campusId: {
 							roleId: role.id,
-							permissionId: permission.id
+							permissionId: permission.id,
+              campusId: null // Assuming campusId can be null for global permissions - changed back to null
 						}
 					},
 					update: {},
 					create: {
 						roleId: role.id,
-						permissionId: permission.id
+						permissionId: permission.id,
+              campusId: null // Assuming campusId can be null for global permissions - changed back to null
 					}
 				});
 			})
