@@ -12,6 +12,7 @@ export interface CampusContextType {
 }
 
 export enum CampusPermission {
+	MANAGE_CAMPUS = "campus:manage",
 	MANAGE_CAMPUS_CLASSES = "MANAGE_CAMPUS_CLASSES",
 	MANAGE_CAMPUS_TEACHERS = "MANAGE_CAMPUS_TEACHERS",
 	MANAGE_CAMPUS_STUDENTS = "MANAGE_CAMPUS_STUDENTS",

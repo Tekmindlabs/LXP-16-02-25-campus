@@ -1,12 +1,11 @@
 "use client";
 
-```
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Pencil, Trash, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/utils/api";
-import { TRPCClientError } from "@trpc/client";
+import { TRPCClientErrorLike } from '@trpc/client';
 
 import {
 	Card,
@@ -77,7 +76,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role created successfully",
 			});
 		},
-		onError: (error: TRPCClientError<any>) => {
+		onError: (error: TRPCClientErrorLike<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -94,7 +93,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role updated successfully",
 			});
 		},
-		onError: (error: TRPCClientError<any>) => {
+		onError: (error: TRPCClientErrorLike<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -111,7 +110,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role deleted successfully",
 			});
 		},
-		onError: (error: TRPCClientError<any>) => {
+		onError: (error: TRPCClientErrorLike<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -125,8 +124,8 @@ export default function UnifiedRoleManagement() {
 		createRoleMutation.mutate({
 			name: roleData.name,
 			description: roleData.description ?? "",
-			type: roleData.type,
-			permissionIds: roleData.permissions.map((p) => p.permission.id),
+			context: roleData.type === 'CORE' ? 'core' : 'campus',
+			permissions: roleData.permissions.map((p) => p.permission.id),
 		});
 	};
 

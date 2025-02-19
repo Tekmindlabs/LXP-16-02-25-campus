@@ -27,7 +27,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 
 	// Create users with profiles
 	let users: (User | null)[] = [];
-
 	// Super Admin User
 	const superAdminPassword = await bcrypt.hash('superadmin123', 12);
 	users.push(
@@ -67,7 +66,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 			}
 		})
 	);
-
 	// Campus Admin User
 	const campusAdminPassword = await bcrypt.hash('campusadmin123', 12);
 	const campusAdminUser = await prisma.user.upsert({
@@ -336,14 +334,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
   });
 
 	await Promise.all([
-		// Add super admin campus role
-		await prisma.campusRole.create({
-			data: {
-				userId: users[0]?.id || '', // Super admin is the first user
-				campusId: campus.id,
-				roleId: campusAdminRole?.id || '',
-			}
-		}),
+
 		// Campus admin role
 		await prisma.campusRole.create({
 			data: {

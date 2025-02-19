@@ -17,6 +17,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+interface PermissionQueryResult {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  campusId: string | null;
+}
+
 export const roleFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -53,7 +62,7 @@ export function RoleForm({
   onCancel,
   isLoading = false,
 }: RoleFormProps) {
-  const { data: permissions } = api.permission.getAll.useQuery();
+  const { data: permissions } = api.permission.getAll.useQuery<PermissionQueryResult[]>();
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: initialData || {
@@ -79,7 +88,7 @@ export function RoleForm({
                 </FormDescription>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {permissions?.map((permission) => (
+                {permissions?.map((permission: PermissionQueryResult) => (
                   <FormField
                     key={permission.id}
                     control={form.control}
