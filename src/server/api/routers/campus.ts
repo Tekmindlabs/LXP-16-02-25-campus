@@ -24,16 +24,16 @@ export const campusRouter = createTRPCRouter({
 			gpsCoordinates: z.string().optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			if (!ctx.session?.user?.id || !ctx.session?.user?.roles) {
+			if (!ctx.session?.user?.id || !ctx.session?.token) {
 				throw new TRPCError({
 					code: 'UNAUTHORIZED',
 					message: 'Not authenticated',
 				});
 			}
 
-			// Check if user has campus:manage permission from session
-			const canManageCampus = ctx.session.user.permissions.includes('campus:manage');
-			const isSuperAdmin = ctx.session.user.roles.includes(DefaultRoles.SUPER_ADMIN);
+			// Check if user has campus:manage permission from session token
+			const canManageCampus = ctx.session.token?.permissions?.includes(CampusPermission.MANAGE_CAMPUS);
+			const isSuperAdmin = ctx.session.token?.roles?.includes(DefaultRoles.SUPER_ADMIN);
 
 			if (!canManageCampus && !isSuperAdmin) {
 				throw new TRPCError({
@@ -58,17 +58,21 @@ export const campusRouter = createTRPCRouter({
 					data: {
 						userId: ctx.session.user.id,
 						campusId: campus.id,
-						role: CampusRoleType.CAMPUS_ADMIN,
-						permissions: [
-							CampusPermission.MANAGE_CAMPUS_CLASSES,
-							CampusPermission.MANAGE_CAMPUS_TEACHERS,
-							CampusPermission.MANAGE_CAMPUS_STUDENTS,
-							CampusPermission.MANAGE_CAMPUS_TIMETABLES,
-							CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
-							CampusPermission.VIEW_CAMPUS_ANALYTICS,
-							CampusPermission.VIEW_PROGRAMS,
-							CampusPermission.VIEW_CLASS_GROUPS
-						],
+						role: {
+							create: {
+								name: CampusRoleType.CAMPUS_ADMIN,
+								permissions: [
+									CampusPermission.MANAGE_CAMPUS_CLASSES,
+									CampusPermission.MANAGE_CAMPUS_TEACHERS,
+									CampusPermission.MANAGE_CAMPUS_STUDENTS,
+									CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+									CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+									CampusPermission.VIEW_CAMPUS_ANALYTICS,
+									CampusPermission.VIEW_PROGRAMS,
+									CampusPermission.VIEW_CLASS_GROUPS
+								]
+							}
+						}
 					},
 				});
 
@@ -87,7 +91,7 @@ export const campusRouter = createTRPCRouter({
 
 
 	getAll: protectedProcedure.query(async ({ ctx }) => {
-		if (!ctx.session?.user?.id) {
+		if (!ctx.session?.user?.id || !ctx.session?.user?.roles) {
 			throw new TRPCError({
 				code: 'UNAUTHORIZED',
 				message: 'Not authenticated',
@@ -139,17 +143,27 @@ export const campusRouter = createTRPCRouter({
 	}),
 
 	getUserPermissions: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.session?.user?.id) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Not authenticated',
+      });
+    }
+
 		const campusRole = await ctx.prisma.campusRole.findFirst({
 			where: {
 				userId: ctx.session.user.id,
 			},
+      include: {
+        role: true
+      }
 		});
 
-		if (!campusRole) {
+		if (!campusRole?.role?.permissions) {
 			return [] as CampusPermission[];
 		}
 
-		return campusRole.permissions as CampusPermission[];
+		return campusRole.role.permissions as CampusPermission[];
 	}),
 
 	getMetrics: protectedProcedure
@@ -258,9 +272,11 @@ export const campusViewRouter = createTRPCRouter({
 				where: {
 					userId: ctx.session.user.id,
 					campusId: input.campusId,
-					permissions: {
-						has: CampusPermission.VIEW_PROGRAMS,
-					},
+					role: {
+						permissions: {
+							hasSome: [CampusPermission.VIEW_PROGRAMS]
+						}
+					}
 				},
 			});
 
@@ -285,9 +301,11 @@ export const campusViewRouter = createTRPCRouter({
 				where: {
 					userId: ctx.session.user.id,
 					campusId: input.campusId,
-					permissions: {
-						has: CampusPermission.VIEW_CLASS_GROUPS,
-					},
+					role: {
+						permissions: {
+							hasSome: [CampusPermission.VIEW_CLASS_GROUPS]
+						}
+					}
 				},
 			});
 
