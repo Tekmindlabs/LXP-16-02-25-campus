@@ -25,8 +25,14 @@ export const checkCampusPermission = (requiredPermission: CampusPermission, camp
       where: {
         userId: ctx.session.user.id,
         campusId: campusId,
-        permissions: {
-          has: requiredPermission
+        role: {
+          permissions: {
+            some: {
+              permission: {
+                name: requiredPermission
+              }
+            }
+          }
         }
       }
     });

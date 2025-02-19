@@ -123,6 +123,8 @@ export const createTRPCContext = async () => {
   return {
     prisma,
     session,
+    userRoles: session?.user?.roles || [],
+    userPermissions: session?.user?.permissions || []
   };
 };
 

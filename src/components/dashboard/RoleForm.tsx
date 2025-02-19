@@ -62,7 +62,15 @@ export function RoleForm({
   onCancel,
   isLoading = false,
 }: RoleFormProps) {
-  const { data: permissions = [] } = api.campusRolePermission.getAll.useQuery<Permission[]>();
+  const { data: rolesData } = api.role.getAll.useQuery();
+  
+  // Extract unique permissions from roles
+  const permissions = rolesData?.flatMap(role => 
+    role.permissions.map(rp => rp.permission)
+  ).filter((permission, index, self) => 
+    index === self.findIndex((p) => p.id === permission.id)
+  ) ?? [];
+
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: initialData || {
