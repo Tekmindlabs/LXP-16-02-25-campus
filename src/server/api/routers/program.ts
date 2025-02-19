@@ -82,7 +82,7 @@ export const programRouter = createTRPCRouter({
           ...(input.search && {
             OR: [
               { name: { contains: input.search, mode: 'insensitive' as Prisma.QueryMode } },
-              { description: { contains: input.search, mode: 'insensitive' as Prisma.QueryMode } },
+              { description: { contains: input.search, mode: 'insensitive' as Prisma.QueryMode } }
             ],
           }),
           ...(input.status && { status: input.status }),
@@ -96,7 +96,7 @@ export const programRouter = createTRPCRouter({
 
           orderBy: {
             name: 'asc',
-          },
+          }
         });
 
         const totalCount = await ctx.prisma.program.count({ where });
@@ -169,7 +169,7 @@ export const programRouter = createTRPCRouter({
                 },
               },
             },
-          },
+          }
         });
 
         if (!program) {
@@ -211,7 +211,7 @@ export const programRouter = createTRPCRouter({
                 },
               },
             },
-          },
+          }
         });
 
         if (!program) {
@@ -239,46 +239,45 @@ export const programRouter = createTRPCRouter({
           calendarId: z.string(),
           coordinatorId: z.string().optional().nullable(),
           campusId: z.array(z.string()),
+          status: z.nativeEnum(Status).optional(),
           termSystem: termSystemInput.optional(),
           assessmentSystem: z.object({
             type: z.enum(["MARKING_SCHEME", "RUBRIC", "HYBRID", "CGPA"]),
             markingScheme: z.object({
-            maxMarks: z.number().min(0),
-            passingMarks: z.number().min(0),
-            gradingScale: z.array(z.object({
-              grade: z.string(),
-              minPercentage: z.number().min(0).max(100),
-              maxPercentage: z.number().min(0).max(100)
-            }))
+              maxMarks: z.number().min(0),
+              passingMarks: z.number().min(0),
+              gradingScale: z.array(z.object({
+                grade: z.string(),
+                minPercentage: z.number().min(0).max(100),
+                maxPercentage: z.number().min(0).max(100)
+              }))
             }).optional(),
             rubric: z.object({
-            name: z.string(),
-            description: z.string().optional(),
-            criteria: z.array(z.object({
               name: z.string(),
               description: z.string().optional(),
-              levels: z.array(z.object({
-              name: z.string(),
-              points: z.number().min(0),
-              description: z.string().optional()
+              criteria: z.array(z.object({
+                name: z.string(),
+                description: z.string().optional(),
+                levels: z.array(z.object({
+                  name: z.string(),
+                  points: z.number().min(0),
+                  description: z.string().optional()
+                }))
               }))
-            }))
             }).optional(),
             cgpaConfig: z.object({
-            gradePoints: z.array(z.object({
-              grade: z.string(),
-              points: z.number(),
-              minPercentage: z.number().min(0).max(100),
-              maxPercentage: z.number().min(0).max(100)
-            })),
-            semesterWeightage: z.boolean(),
-            includeBacklogs: z.boolean()
+              gradePoints: z.array(z.object({
+                grade: z.string(),
+                points: z.number(),
+                minPercentage: z.number().min(0).max(100),
+                maxPercentage: z.number().min(0).max(100)
+              })),
+              semesterWeightage: z.boolean(),
+              includeBacklogs: z.boolean()
             }).optional()
           }).optional()
         })
-      ))
-    
-
+      })
     .mutation(async ({ ctx, input }) => {
       try {
         // Fetch calendar and ensure it has an academic year and terms
@@ -343,7 +342,7 @@ export const programRouter = createTRPCRouter({
                 }
                 }
               }
-              }))
+              })
             } : undefined,
 
             ...(input.assessmentSystem && {
@@ -376,7 +375,7 @@ export const programRouter = createTRPCRouter({
                     data: criterion.levels
                     }
                   }
-                  }))
+                  })
                 }
                 }
               } : undefined
@@ -433,6 +432,16 @@ export const programRouter = createTRPCRouter({
                 description: z.string().optional()
               }))
             }))
+          }).optional(),
+          cgpaConfig: z.object({
+            gradePoints: z.array(z.object({
+              grade: z.string(),
+              points: z.number(),
+              minPercentage: z.number().min(0).max(100),
+              maxPercentage: z.number().min(0).max(100)
+            })),
+            semesterWeightage: z.boolean(),
+            includeBacklogs: z.boolean()
           }).optional()
         }).optional()
       })
@@ -642,42 +651,43 @@ export const programRouter = createTRPCRouter({
                 }
               }
               }
-            }))
+            })
             } : undefined,
             assessmentSystem: input.assessmentSystem ? {
               create: {
-              name: input.name + " Assessment System",
-              type: input.assessmentSystem.type,
-              markingSchemes: input.assessmentSystem.markingScheme ? {
-                create: [{
-                name: "Updated Marking Scheme",
-                maxMarks: input.assessmentSystem.markingScheme.maxMarks,
-                passingMarks: input.assessmentSystem.markingScheme.passingMarks,
-                gradingScale: {
-                  createMany: {
-                  data: input.assessmentSystem.markingScheme.gradingScale
-                  }
-                }
-                }]
-              } : undefined,
-              rubrics: input.assessmentSystem.rubric ? {
-                create: [{
-                name: input.assessmentSystem.rubric.name,
-                description: input.assessmentSystem.rubric.description,
-                criteria: {
-                  create: input.assessmentSystem.rubric.criteria.map(criterion => ({
-                  name: criterion.name,
-                  description: criterion.description,
-                  levels: {
-                    createMany: {
-                    data: criterion.levels
+                name: input.name + " Assessment System",
+                type: input.assessmentSystem.type,
+                markingSchemes: input.assessmentSystem.markingScheme ? {
+                  create: {
+                    name: "Updated Marking Scheme",
+                    maxMarks: input.assessmentSystem.markingScheme.maxMarks,
+                    passingMarks: input.assessmentSystem.markingScheme.passingMarks,
+                    gradingScale: {
+                      createMany: {
+                        data: input.assessmentSystem.markingScheme.gradingScale
+                      }
                     }
                   }
-                  }))
-                }
-                }]
-              } : undefined
+                } : undefined,
+                rubrics: input.assessmentSystem.rubric ? {
+                  create: {
+                    name: input.assessmentSystem.rubric.name,
+                    description: input.assessmentSystem.rubric.description,
+                    criteria: {
+                      create: input.assessmentSystem.rubric.criteria.map(criterion => ({
+                        name: criterion.name,
+                        description: criterion.description,
+                        levels: {
+                          createMany: {
+                            data: criterion.levels
+                          }
+                        }
+                      }))
+                    }
+                  }
+                } : undefined
               }
+            } : undefined
 
             } : undefined
           },
@@ -695,7 +705,6 @@ export const programRouter = createTRPCRouter({
         });
       }
     }),
-
 
   delete: protectedProcedure
     .input(z.string())
@@ -721,7 +730,7 @@ export const programRouter = createTRPCRouter({
         const coordinators = await ctx.prisma.coordinatorProfile.findMany({
           include: {
             user: true,
-          },
+          }
         });
 
         return coordinators;
@@ -768,7 +777,7 @@ export const programRouter = createTRPCRouter({
                 },
               },
             },
-          },
+          }
         });
 
         return program;
@@ -829,7 +838,7 @@ export const programRouter = createTRPCRouter({
               },
             },
             calendar: true,
-          },
+          }
         });
 
         return programs;
@@ -840,5 +849,5 @@ export const programRouter = createTRPCRouter({
           cause: error,
         });
       }
-    }),
+    })
 });
