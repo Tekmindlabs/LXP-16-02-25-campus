@@ -62,7 +62,7 @@ export function RoleForm({
   onCancel,
   isLoading = false,
 }: RoleFormProps) {
-  const { data: permissions = [] } = api.permission.getAll.useQuery<Permission[]>();
+  const { data: permissions = [] } = api.campusRolePermission.getAll.useQuery<Permission[]>();
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: initialData || {
@@ -88,7 +88,7 @@ export function RoleForm({
                 </FormDescription>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {permissions.map((permission) => (
+                {permissions.map((permission: Permission) => (
                   <FormField
                     key={permission.id}
                     control={form.control}

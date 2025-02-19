@@ -88,12 +88,10 @@ export const createTRPCContext = async () => {
       }
     });
 
-    console.log('User with roles:', JSON.stringify(userWithRoles, null, 2));
-    
     const assignedRoles = userWithRoles?.userRoles?.map(ur => ur.role.name) || [];
     const userPermissions = userWithRoles?.userRoles.flatMap(
-        (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) => 
-        userRole.role.permissions.map((rp) => rp.permission.name)
+      (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) => 
+      userRole.role.permissions.map((rp) => rp.permission.name)
     ) || [];
 
     // If user has super-admin role, keep it exclusive and include all permissions
@@ -105,6 +103,13 @@ export const createTRPCContext = async () => {
       session.user.roles = assignedRoles;
       session.user.permissions = userPermissions;
     }
+
+    // Ensure roles and permissions are properly set in the session
+    session.user = {
+      ...session.user,
+      roles: session.user.roles || [],
+      permissions: session.user.permissions || []
+    };
 
     console.log('TRPC Context Created:', {
       hasSession: true,
