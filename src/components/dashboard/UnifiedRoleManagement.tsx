@@ -4,7 +4,7 @@ import { Plus, Pencil, Trash, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/utils/api";
 import { TRPCClientError } from "@trpc/client";
-import { DefaultErrorShape } from "@trpc/server";
+
 import {
 	Card,
 	CardContent,
@@ -33,23 +33,35 @@ import { RoleForm } from "./RoleForm";
 interface Role {
 	id: string;
 	name: string;
-	description: string;
-	context: "core" | "campus";
+	description: string | null;
+	type: 'CORE' | 'CAMPUS';
 	permissions: Array<{
 		permission: {
 			id: string;
 			name: string;
+			description: string | null;
+			createdAt: Date;
+			updatedAt: Date;
+			campusId: string | null;
 		}
 	}>;
+	parentId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
-	parentId: string | null;
 }
 
 export default function UnifiedRoleManagement() {
 	const { data: roles = [], isLoading } = api.role.getAll.useQuery();
 	const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 	const [contextFilter, setContextFilter] = useState<"all" | "core" | "campus">("all");
+
+	const typeToContext = (type: 'CORE' | 'CAMPUS'): 'core' | 'campus' => {
+		return type === 'CORE' ? 'core' : 'campus';
+	};
+
+	const contextToType = (context: 'core' | 'campus'): 'CORE' | 'CAMPUS' => {
+		return context === 'core' ? 'CORE' : 'CAMPUS';
+	};
 	const { toast } = useToast();
 
 	const utils = api.useContext();
@@ -62,7 +74,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role created successfully",
 			});
 		},
-		onError: (error: TRPCClientError<DefaultErrorShape>) => {
+		onError: (error: TRPCClientError<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -79,7 +91,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role updated successfully",
 			});
 		},
-		onError: (error: TRPCClientError<DefaultErrorShape>) => {
+		onError: (error: TRPCClientError<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -96,7 +108,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role deleted successfully",
 			});
 		},
-		onError: (error: TRPCClientError<DefaultErrorShape>) => {
+		onError: (error: TRPCClientError<any>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -110,6 +122,7 @@ export default function UnifiedRoleManagement() {
 		createRoleMutation.mutate({
 			name: roleData.name,
 			description: roleData.description,
+			type: roleData.type,
 			permissionIds: roleData.permissions.map((p) => p.permission.id),
 		});
 	};
@@ -121,6 +134,7 @@ export default function UnifiedRoleManagement() {
 			data: {
 				name: roleData.name,
 				description: roleData.description,
+				type: roleData.type,
 				permissionIds: roleData.permissions?.map((p) => p.permission.id),
 			},
 		});
@@ -132,7 +146,7 @@ export default function UnifiedRoleManagement() {
 	};
 
 	const filteredRoles = roles.filter((role) =>
-		contextFilter === "all" ? true : role.context === contextFilter
+		contextFilter === "all" ? true : typeToContext(role.type) === contextFilter
 	);
 
 	return (
@@ -198,8 +212,8 @@ export default function UnifiedRoleManagement() {
 									<TableRow key={role.id}>
 										<TableCell className="font-medium">{role.name}</TableCell>
 										<TableCell>
-											<Badge variant={role.context === "core" ? "default" : "secondary"}>
-												{role.context}
+											<Badge variant={typeToContext(role.type) === "core" ? "default" : "secondary"}>
+												{typeToContext(role.type)}
 											</Badge>
 										</TableCell>
 										<TableCell>{role.description}</TableCell>
