@@ -5,10 +5,10 @@ import { ZodError } from "zod";
 import { Permission, DefaultRoles } from "@/utils/permissions";
 import { getServerAuthSession } from "@/server/auth";
 import { prisma } from "@/server/db";
-import type { Session } from "next-auth";
-import { type DefaultSession } from "next-auth";
+import type { Session, DefaultSession } from "next-auth";
 
 export const isServer = () => typeof window === 'undefined';
+
 
 // Extend Session type to include roles
 declare module "next-auth" {
@@ -65,7 +65,7 @@ interface UserWithRoles {
 }
 
 
-export const createTRPCContext = async () => {
+export const createTRPCContext = async (opts?: CreateNextContextOptions) => {
   const session = await getServerAuthSession();
 
   if (session?.user) {
@@ -90,7 +90,7 @@ export const createTRPCContext = async () => {
 
     const assignedRoles = userWithRoles?.userRoles?.map(ur => ur.role.name) || [];
     const userPermissions = userWithRoles?.userRoles.flatMap(
-      (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) => 
+      (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) =>
       userRole.role.permissions.map((rp) => rp.permission.name)
     ) || [];
 
@@ -129,6 +129,8 @@ export const createTRPCContext = async () => {
 };
 
 
+
+
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }: { shape: TRPCShape; error: { cause?: unknown; code?: string; message: string } }) {
@@ -143,11 +145,11 @@ const t = initTRPC.context<Context>().create({
       },
     };
   },
-  isServer: isServer(),
-});
+  });
 
-export const createTRPCRouter = t.router;
-export const publicProcedure = t.procedure;
+  export const createTRPCRouter = t.router;
+  export const publicProcedure = t.procedure;
+
 
 const enforceUserIsAuthed = t.middleware(({ ctx, next }: { ctx: Context; next: (opts: { ctx: Context }) => Promise<any> }) => {
   if (!ctx.session || !ctx.session.user) {
