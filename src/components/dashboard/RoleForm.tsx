@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Permission } from "@prisma/client";
 
 export const roleFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -52,6 +51,7 @@ export function RoleForm({
       name: "",
       description: "",
       context: "core",
+      permissions: [],
     },
   });
 
@@ -70,7 +70,7 @@ export function RoleForm({
                 </FormDescription>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {permissions?.map((permission: Permission) => (
+                {permissions?.map((permission) => (
                   <FormField
                     key={permission.id}
                     control={form.control}

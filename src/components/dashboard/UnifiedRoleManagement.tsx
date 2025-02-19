@@ -3,6 +3,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, Pencil, Trash, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/utils/api";
+import { TRPCClientError } from "@trpc/client";
+import { DefaultErrorShape } from "@trpc/server";
 import {
 	Card,
 	CardContent,
@@ -39,6 +41,9 @@ interface Role {
 			name: string;
 		}
 	}>;
+	createdAt: Date;
+	updatedAt: Date;
+	parentId: string | null;
 }
 
 export default function UnifiedRoleManagement() {
@@ -57,7 +62,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role created successfully",
 			});
 		},
-		onError: (error: Error) => {
+		onError: (error: TRPCClientError<DefaultErrorShape>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -74,7 +79,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role updated successfully",
 			});
 		},
-		onError: (error: Error) => {
+		onError: (error: TRPCClientError<DefaultErrorShape>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",
@@ -91,7 +96,7 @@ export default function UnifiedRoleManagement() {
 				description: "Role deleted successfully",
 			});
 		},
-		onError: (error: Error) => {
+		onError: (error: TRPCClientError<DefaultErrorShape>) => {
 			toast({
 				variant: "destructive",
 				title: "Error",

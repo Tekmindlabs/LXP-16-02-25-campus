@@ -658,7 +658,7 @@ model ClassActivity {
     // New fields for enhanced configuration
   adaptiveLearning Json?
   interactivity    Json?
-  analytics        Json?
+  analytics ActivityAnalytics[]
   
   // Template related fields
   isTemplate       Boolean   @default(false)

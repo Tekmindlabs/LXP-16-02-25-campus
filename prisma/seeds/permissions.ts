@@ -103,25 +103,31 @@ export async function seedPermissions(prisma: PrismaClient) {
 	for (const role of roles) {
 		const rolePermissions = RolePermissions[role.name as keyof typeof RolePermissions] || [];
 		await Promise.all(
-			rolePermissions.map(permissionName => {
+			rolePermissions.map(async permissionName => {
 				const permission = permissions.find(p => p.name === permissionName);
 				if (!permission) return Promise.resolve();
 
-				return prisma.rolePermission.upsert({
+				// For global permissions, we first try to find if the permission already exists
+				const existingPermission = await prisma.rolePermission.findFirst({
 					where: {
-						roleId_permissionId_campusId: {
-							roleId: role.id,
-							permissionId: permission.id,
-							campusId: ''  // Assuming campusId can be null for global permissions - changed back to null
-						}
-					},
-					update: {},
-					create: {
 						roleId: role.id,
 						permissionId: permission.id,
-						campusId: '' // Assuming campusId can be null for global permissions - changed back to null
+						campusId: null
 					}
 				});
+
+				// If it doesn't exist, create it
+				if (!existingPermission) {
+					return prisma.rolePermission.create({
+						data: {
+							role: { connect: { id: role.id } },
+							permission: { connect: { id: permission.id } },
+							campusId: null // Explicitly set campusId to null for global permissions
+						}
+					});
+				}
+
+				return existingPermission;
 			})
 		);
 	}

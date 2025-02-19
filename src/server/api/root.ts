@@ -10,11 +10,12 @@ import { calendarRouter } from "./routers/calendar";
 import { studentRouter } from "./routers/student";
 import { teacherRouter } from "./routers/teacher";
 import { workspaceRouter } from "./routers/workspace";
-import { campusRolePermissionRouter } from "./routers/campus-role-permission"; // ADDED LINE
-
+import { campusRolePermissionRouter } from "./routers/campus-role-permission";
+import { roleRouter } from "./routers/role";
 
 export const appRouter = createTRPCRouter({
-  campusRolePermission: campusRolePermissionRouter, // NEW LINE
+  campusRolePermission: campusRolePermissionRouter,
+  role: roleRouter,
   activity: activityRouter,
   curriculum: curriculumRouter,
   class: classRouter,
