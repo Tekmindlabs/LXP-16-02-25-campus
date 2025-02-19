@@ -26,6 +26,15 @@ export const roleFormSchema = z.object({
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
+interface Permission {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  campusId: string | null;
+}
+
 interface RoleFormProps {
   initialData?: {
     name: string;

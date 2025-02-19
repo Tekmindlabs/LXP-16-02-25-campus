@@ -121,7 +121,7 @@ export default function UnifiedRoleManagement() {
 	const handleCreateRole = (roleData: Omit<Role, "id">) => {
 		createRoleMutation.mutate({
 			name: roleData.name,
-			description: roleData.description,
+			description: roleData.description ?? "",
 			type: roleData.type,
 			permissionIds: roleData.permissions.map((p) => p.permission.id),
 		});
@@ -133,8 +133,7 @@ export default function UnifiedRoleManagement() {
 			id: roleId,
 			data: {
 				name: roleData.name,
-				description: roleData.description,
-				type: roleData.type,
+				description: roleData.description ?? "",
 				permissionIds: roleData.permissions?.map((p) => p.permission.id),
 			},
 		});

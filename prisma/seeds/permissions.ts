@@ -53,6 +53,36 @@ export async function seedPermissions(prisma: PrismaClient) {
 				description: 'Institution Administrator'
 			}
 		}),
+		// Campus Admin Role
+		prisma.role.upsert({
+			where: { name: DefaultRoles.CAMPUS_ADMIN },
+			update: {
+				description: 'Campus Administrator',
+				permissions: {
+					deleteMany: {},
+					create: permissions
+						.filter(permission => 
+							RolePermissions[DefaultRoles.CAMPUS_ADMIN].includes(permission.name as any)
+						)
+						.map(permission => ({
+							permission: { connect: { id: permission.id } }
+						}))
+				}
+			},
+			create: {
+				name: DefaultRoles.CAMPUS_ADMIN,
+				description: 'Campus Administrator',
+				permissions: {
+					create: permissions
+						.filter(permission => 
+							RolePermissions[DefaultRoles.CAMPUS_ADMIN].includes(permission.name as any)
+						)
+						.map(permission => ({
+							permission: { connect: { id: permission.id } }
+						}))
+				}
+			}
+		}),
 		// Coordinator Role
 		prisma.role.upsert({
 			where: { name: DefaultRoles.COORDINATOR },
@@ -122,7 +152,6 @@ export async function seedPermissions(prisma: PrismaClient) {
 						data: {
 							role: { connect: { id: role.id } },
 							permission: { connect: { id: permission.id } },
-							campusId: null // Explicitly set campusId to null for global permissions
 						}
 					});
 				}
