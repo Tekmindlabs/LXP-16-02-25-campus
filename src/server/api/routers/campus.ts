@@ -62,7 +62,7 @@ export const campusRouter = createTRPCRouter({
         });
       }
 
-      return ctx.prisma.$transaction(async (tx: typeof ctx.prisma) => {
+      return ctx.prisma.$transaction(async (tx) => {
         const campus = await tx.campus.create({
           data: {
             ...input,
@@ -76,7 +76,7 @@ export const campusRouter = createTRPCRouter({
           data: {
             userId: ctx.session?.user?.id,
             campusId: campus.id,
-            roleType: CampusRoleType.CAMPUS_ADMIN,
+            roleId: CampusRoleType.CAMPUS_ADMIN, // Direct assignment of roleId
             permissions: {
               create: [
                 CampusPermission.MANAGE_CAMPUS_CLASSES,

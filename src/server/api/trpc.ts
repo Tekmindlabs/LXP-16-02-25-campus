@@ -6,7 +6,7 @@ import { Permission, DefaultRoles } from "@/utils/permissions";
 import { getServerAuthSession } from "@/server/auth";
 import { prisma } from "@/server/db";
 import type { Session } from "next-auth";
-import type { DefaultSession } from "next-auth/types";
+
 
 export const isServer = () => typeof window === 'undefined';
 
@@ -30,9 +30,7 @@ declare module "next-auth" {
     roles: string[];
     permissions: string[];
   }
-  
-
-
+}
 
 export type Context = {
   prisma: typeof prisma;
