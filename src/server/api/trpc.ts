@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { Permission, DefaultRoles } from "@/utils/permissions";
 import { getServerAuthSession } from "@/server/auth";
 import { prisma } from "@/server/db";
+import { academicCalendarRouter } from "./routers/academic-calendar";
 import type { Session } from "next-auth";
 
 
