@@ -14,6 +14,7 @@ import { campusRolePermissionRouter } from "./routers/campus-role-permission";
 import { roleRouter } from "./routers/role";
 
 export const appRouter = createTRPCRouter({
+  academicCalendar: academicCalendarRouter,
   campusRolePermission: campusRolePermissionRouter,
   role: roleRouter,
   activity: activityRouter,
