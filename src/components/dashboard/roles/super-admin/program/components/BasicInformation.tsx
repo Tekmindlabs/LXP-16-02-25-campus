@@ -62,14 +62,13 @@ export const BasicInformation = ({ formData, calendars, coordinators, campuses, 
 			<div>
 				<Label htmlFor="coordinator">Coordinator</Label>
 				<Select
-					value={formData.coordinatorId}
-					onValueChange={(value) => onFormDataChange({ coordinatorId: value })}
+					value={formData.coordinatorId || ""}
+					onValueChange={(value) => onFormDataChange({ coordinatorId: value || null })}
 				>
 					<SelectTrigger className="w-full">
 						<SelectValue placeholder="Select Coordinator" />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="NO_SELECTION">Select Coordinator</SelectItem>
 						{coordinators.map((coordinator) => (
 							<SelectItem key={coordinator.id} value={coordinator.id}>
 								{coordinator.user.name}

@@ -132,11 +132,39 @@ export const programRouter = createTRPCRouter({
               },
             },
             calendar: true,
+            campuses: true,
             classGroups: {
               include: {
                 classes: {
                   include: {
                     students: true,
+                  },
+                },
+              },
+            },
+            termStructures: {
+              include: {
+                academicTerms: {
+                  include: {
+                    assessmentPeriods: true,
+                  },
+                },
+              },
+            },
+            assessmentSystem: {
+              include: {
+                markingSchemes: {
+                  include: {
+                    gradingScale: true,
+                  },
+                },
+                rubrics: {
+                  include: {
+                    criteria: {
+                      include: {
+                        levels: true,
+                      },
+                    },
                   },
                 },
               },
@@ -203,52 +231,53 @@ export const programRouter = createTRPCRouter({
       }
     }),
 
-  create: protectedProcedure
-    .input(
-      z.object({
-        name: z.string().min(1, "Name is required"),
-        description: z.string().optional(),
-        calendarId: z.string(),
-        coordinatorId: z.string().optional(),
-        status: z.nativeEnum(Status).default(Status.ACTIVE),
-        termSystem: termSystemInput.optional(),
-        assessmentSystem: z.object({
-          type: z.enum(["MARKING_SCHEME", "RUBRIC", "HYBRID", "CGPA"]),
-          markingScheme: z.object({
-          maxMarks: z.number().min(0),
-          passingMarks: z.number().min(0),
-          gradingScale: z.array(z.object({
-            grade: z.string(),
-            minPercentage: z.number().min(0).max(100),
-            maxPercentage: z.number().min(0).max(100)
-          }))
-          }).optional(),
-          rubric: z.object({
-          name: z.string(),
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "Name is required"),
           description: z.string().optional(),
-          criteria: z.array(z.object({
+          calendarId: z.string(),
+          coordinatorId: z.string().optional().nullable(),
+          campusId: z.array(z.string()),
+          termSystem: termSystemInput.optional(),
+          assessmentSystem: z.object({
+            type: z.enum(["MARKING_SCHEME", "RUBRIC", "HYBRID", "CGPA"]),
+            markingScheme: z.object({
+            maxMarks: z.number().min(0),
+            passingMarks: z.number().min(0),
+            gradingScale: z.array(z.object({
+              grade: z.string(),
+              minPercentage: z.number().min(0).max(100),
+              maxPercentage: z.number().min(0).max(100)
+            }))
+            }).optional(),
+            rubric: z.object({
             name: z.string(),
             description: z.string().optional(),
-            levels: z.array(z.object({
-            name: z.string(),
-            points: z.number().min(0),
-            description: z.string().optional()
+            criteria: z.array(z.object({
+              name: z.string(),
+              description: z.string().optional(),
+              levels: z.array(z.object({
+              name: z.string(),
+              points: z.number().min(0),
+              description: z.string().optional()
+              }))
             }))
-          }))
-          }).optional(),
-          cgpaConfig: z.object({
-          gradePoints: z.array(z.object({
-            grade: z.string(),
-            points: z.number(),
-            minPercentage: z.number().min(0).max(100),
-            maxPercentage: z.number().min(0).max(100)
-          })),
-          semesterWeightage: z.boolean(),
-          includeBacklogs: z.boolean()
+            }).optional(),
+            cgpaConfig: z.object({
+            gradePoints: z.array(z.object({
+              grade: z.string(),
+              points: z.number(),
+              minPercentage: z.number().min(0).max(100),
+              maxPercentage: z.number().min(0).max(100)
+            })),
+            semesterWeightage: z.boolean(),
+            includeBacklogs: z.boolean()
+            }).optional()
           }).optional()
-        }).optional()
-      })
-    )
+        })
+      ))
+    
 
     .mutation(async ({ ctx, input }) => {
       try {
@@ -289,6 +318,9 @@ export const programRouter = createTRPCRouter({
             description: input.description,
             calendar: { connect: { id: input.calendarId } },
             coordinator: input.coordinatorId ? { connect: { id: input.coordinatorId } } : undefined,
+            campuses: {
+              connect: input.campusId.map(id => ({ id }))
+            },
             status: input.status,
             termSystem: input.termSystem?.type,
             termStructures: input.termSystem ? {
@@ -375,7 +407,7 @@ export const programRouter = createTRPCRouter({
         name: z.string().optional(),
         description: z.string().optional(),
         calendarId: z.string().optional(),
-        coordinatorId: z.string().optional(),
+        coordinatorId: z.string().optional().nullable(),
         status: z.nativeEnum(Status).optional(),
         termSystem: termSystemInput.optional(),
         assessmentSystem: z.object({

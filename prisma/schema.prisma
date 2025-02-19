@@ -86,6 +86,7 @@ model Campus {
   sync      CampusSync?
   classes   Class[]
   rolePermissions RolePermission[] // Add relation to RolePermission
+  programs  Program[]             @relation("ProgramCampuses")
 
   // Audit fields
   createdAt DateTime @default(now())
@@ -373,6 +374,7 @@ model Program {
   classGroups      ClassGroup[]
   termStructures   ProgramTermStructure[]
   assessmentSystem AssessmentSystem?
+  campuses         Campus[]               @relation("ProgramCampuses")
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
