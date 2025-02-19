@@ -1,3 +1,6 @@
+"use client";
+
+```
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Pencil, Trash, Loader2 } from "lucide-react";
@@ -245,3 +248,4 @@ export default function UnifiedRoleManagement() {
 		</Card>
 	);
 }
+```
