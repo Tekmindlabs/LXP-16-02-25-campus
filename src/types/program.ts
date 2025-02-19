@@ -19,7 +19,7 @@ export interface ProgramFormData {
 	name: string;
 	description?: string;
 	calendarId: string;
-	campusId: string;
+	campusId: string[];
 	coordinatorId?: string;
 	status: Status;
 	termSystem?: {

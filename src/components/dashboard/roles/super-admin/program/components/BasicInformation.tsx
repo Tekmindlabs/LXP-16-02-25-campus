@@ -2,6 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Status } from "@prisma/client";
 import { ProgramFormData } from "@/types/program";
 import { api } from "@/utils/api";
@@ -80,21 +81,16 @@ export const BasicInformation = ({ formData, calendars, coordinators, campuses, 
 
 			<div>
 				<Label htmlFor="campus">Campus</Label>
-				<Select
-					value={formData.campusId}
-					onValueChange={(value) => onFormDataChange({ campusId: value })}
-				>
-					<SelectTrigger className="w-full">
-						<SelectValue placeholder="Select Campus" />
-					</SelectTrigger>
-					<SelectContent>
-						{campuses.map((campus) => (
-							<SelectItem key={campus.id} value={campus.id}>
-								{campus.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+				<MultiSelect
+					options={campuses.map(campus => ({
+						value: campus.id,
+						label: campus.name
+					}))}
+					selected={formData.campusId}
+					onChange={(selected) => onFormDataChange({ campusId: selected })}
+					placeholder="Select Campuses"
+					className="w-full"
+				/>
 			</div>
 
 			<div>

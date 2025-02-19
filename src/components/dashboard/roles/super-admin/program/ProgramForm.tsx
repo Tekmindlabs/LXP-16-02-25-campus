@@ -12,6 +12,9 @@ import { ProgramSubmission } from "./components/ProgramSubmission";
 import { ProgramFormData, TermSystemType } from "@/types/program";
 import { AssessmentSystemType } from "@/types/assessment";
 import { defaultFormData, termConfigs } from "@/constants/program";
+import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent } from "@/components/ui/select";
+import { useEffect } from "react";
 
 interface ProgramFormProps {
     selectedProgram?: any;
@@ -24,9 +27,6 @@ const LoadingSpinner = () => (
         <Loader2 className="h-8 w-8 animate-spin" />
     </div>
 );
-
-
-
 
 export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
     const [formData, setFormData] = useState<ProgramFormData>(() => 
@@ -203,27 +203,37 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
 const transformProgramToFormData = (program: any): ProgramFormData => {
     return {
         name: program.name,
-        description: program.description || "",
+        description: program.description,
         calendarId: program.calendarId,
-        coordinatorId: program.coordinatorId || "NO_SELECTION",
-        campusId: program.campusId,
-        status: program.status as Status,
-        termSystem: {
-            type: program.termStructures?.[0]?.type || "SEMESTER",
-            terms: program.termStructures?.map((term: any) => ({
+        campusId: program.campusIds || [], // Change to support multiple campuses
+        coordinatorId: program.coordinatorId,
+        status: program.status,
+        termSystem: program.termSystem ? {
+            type: program.termSystem.type,
+            terms: program.termSystem.terms.map((term: any) => ({
                 name: term.name,
                 startDate: new Date(term.startDate),
                 endDate: new Date(term.endDate),
                 type: term.type,
-                assessmentPeriods: term.assessmentPeriods || []
-            })) || []
-        },
-        assessmentSystem: program.assessmentSystem || defaultFormData.assessmentSystem
+                assessmentPeriods: term.assessmentPeriods?.map((period: any) => ({
+                    name: period.name,
+                    startDate: new Date(period.startDate),
+                    endDate: new Date(period.endDate),
+                    weight: period.weight
+                })) || []
+            }))
+        } : undefined,
+        assessmentSystem: {
+            type: program.assessmentSystem.type,
+            markingScheme: program.assessmentSystem.markingScheme,
+            rubric: program.assessmentSystem.rubric,
+            cgpaConfig: program.assessmentSystem.cgpaConfig
+        }
     };
 };
 
 const validateForm = (formData: ProgramFormData): boolean => {
-    if (!formData.name.trim()) {
+        if (!formData.name.trim()) {
         toast({
             title: "Validation Error",
             description: "Program name is required",
