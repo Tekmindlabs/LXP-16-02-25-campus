@@ -3,7 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusPermission, CampusRoleType } from '@/types/campus';
 import { DefaultRoles } from '@/utils/permissions';
 import { TRPCError } from "@trpc/server";
-
+import { CampusUserService } from "../../services/CampusUserService";
 
 export const campusRouter = createTRPCRouter({
 	create: protectedProcedure
@@ -24,7 +24,7 @@ export const campusRouter = createTRPCRouter({
 			gpsCoordinates: z.string().optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			if (!ctx.session?.user) {
+			if (!ctx.session?.user?.id) {
 				throw new TRPCError({
 					code: 'UNAUTHORIZED',
 					message: 'Not authenticated',
@@ -32,9 +32,9 @@ export const campusRouter = createTRPCRouter({
 			}
 
 			// Check if user has campus:manage permission or is super admin
-			const campusUserService = new CampusUserService(ctx.prisma);
 			const isSuperAdmin = ctx.session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
 			const hasManagePermission = ctx.session.user.permissions?.includes('campus:manage');
+
 
 			if (!isSuperAdmin && !hasManagePermission) {
 			  throw new TRPCError({
@@ -73,14 +73,16 @@ export const campusRouter = createTRPCRouter({
 										CampusPermission.VIEW_PROGRAMS,
 										CampusPermission.VIEW_CLASS_GROUPS
 									].map(permissionName => ({
-                    id: `${CampusRoleType.CAMPUS_ADMIN}_${permissionName}_${campus.id}`,
-                    roleId_permissionId_campusId: `${CampusRoleType.CAMPUS_ADMIN}_${permissionName}_${campus.id}`
+                      roleId: CampusRoleType.CAMPUS_ADMIN,
+                      permissionId: permissionName,
+                      campusId: campus.id
                   }))
 								}
 							}
 						}
 					},
 				});
+
 
 				console.log('Campus role created:', campusRole.id);
 
@@ -149,6 +151,12 @@ export const campusRouter = createTRPCRouter({
 	}),
 
 	getUserPermissions: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.session) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Not authenticated',
+      });
+    }
     if (!ctx.session?.user?.id) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
@@ -173,7 +181,7 @@ export const campusRouter = createTRPCRouter({
 			return [];
 		}
 
-		return campusRole.role.permissions.map(p => p.permission.name as CampusPermission);
+		return campusRole.role.permissions.map(p => p.permissionId as CampusPermission);
 	}),
 
 	getMetrics: protectedProcedure
