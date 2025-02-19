@@ -24,7 +24,7 @@ export const campusRouter = createTRPCRouter({
 			gpsCoordinates: z.string().optional(),
 		}))
 		.mutation(async ({ ctx, input }) => {
-			if (!ctx.session?.user?.id || !ctx.session?.token) {
+			if (!ctx.session?.user?.id || !ctx.session?.user?.token) {
 				throw new TRPCError({
 					code: 'UNAUTHORIZED',
 					message: 'Not authenticated',
@@ -32,8 +32,8 @@ export const campusRouter = createTRPCRouter({
 			}
 
 			// Check if user has campus:manage permission from session token
-			const canManageCampus = ctx.session.token?.permissions?.includes(CampusPermission.MANAGE_CAMPUS);
-			const isSuperAdmin = ctx.session.token?.roles?.includes(DefaultRoles.SUPER_ADMIN);
+			const canManageCampus = ctx.session?.user?.token?.permissions?.includes(CampusPermission.MANAGE_CAMPUS);
+			const isSuperAdmin = ctx.session?.user?.roles?.includes(DefaultRoles.SUPER_ADMIN);
 
 			if (!canManageCampus && !isSuperAdmin) {
 				throw new TRPCError({
@@ -61,16 +61,18 @@ export const campusRouter = createTRPCRouter({
 						role: {
 							create: {
 								name: CampusRoleType.CAMPUS_ADMIN,
-								permissions: [
-									CampusPermission.MANAGE_CAMPUS_CLASSES,
-									CampusPermission.MANAGE_CAMPUS_TEACHERS,
-									CampusPermission.MANAGE_CAMPUS_STUDENTS,
-									CampusPermission.MANAGE_CAMPUS_TIMETABLES,
-									CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
-									CampusPermission.VIEW_CAMPUS_ANALYTICS,
-									CampusPermission.VIEW_PROGRAMS,
-									CampusPermission.VIEW_CLASS_GROUPS
-								]
+								permissions: {
+									connect: [
+										CampusPermission.MANAGE_CAMPUS_CLASSES,
+										CampusPermission.MANAGE_CAMPUS_TEACHERS,
+										CampusPermission.MANAGE_CAMPUS_STUDENTS,
+										CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+										CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+										CampusPermission.VIEW_CAMPUS_ANALYTICS,
+										CampusPermission.VIEW_PROGRAMS,
+										CampusPermission.VIEW_CLASS_GROUPS
+									].map(permission => ({ where: { name: permission } }))
+								}
 							}
 						}
 					},
@@ -274,7 +276,7 @@ export const campusViewRouter = createTRPCRouter({
 					campusId: input.campusId,
 					role: {
 						permissions: {
-							hasSome: [CampusPermission.VIEW_PROGRAMS]
+							some: [CampusPermission.VIEW_PROGRAMS]
 						}
 					}
 				},
@@ -303,7 +305,7 @@ export const campusViewRouter = createTRPCRouter({
 					campusId: input.campusId,
 					role: {
 						permissions: {
-							hasSome: [CampusPermission.VIEW_CLASS_GROUPS]
+							some: [CampusPermission.VIEW_CLASS_GROUPS]
 						}
 					}
 				},
