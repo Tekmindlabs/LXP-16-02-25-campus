@@ -45,6 +45,12 @@ export const campusRouter = createTRPCRouter({
   create: protectedProcedure
     .input(campusCreateInput)
     .mutation(async ({ ctx, input }: { ctx: Context; input: z.infer<typeof campusCreateInput> }) => {
+      console.log('Create campus attempt:', {
+        sessionUser: ctx.session?.user,
+        roles: ctx.session?.user?.roles,
+        permissions: ctx.session?.user?.permissions
+      });
+
       if (!ctx.session?.user?.id) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
@@ -53,9 +59,15 @@ export const campusRouter = createTRPCRouter({
       }
 
       const isSuperAdmin = ctx.session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
-      const hasManagePermission = ctx.session.user.permissions?.includes('campus:manage');
+      const hasManagePermission = ctx.session.user.permissions?.includes(CampusPermission.MANAGE_CAMPUS);
 
       if (!isSuperAdmin && !hasManagePermission) {
+        console.log('Permission check failed:', {
+          userRoles: ctx.session.user.roles,
+          userPermissions: ctx.session.user.permissions,
+          isSuperAdmin,
+          hasManagePermission
+        });
         throw new TRPCError({
           code: 'FORBIDDEN',
           message: 'You do not have permission to create campuses',
