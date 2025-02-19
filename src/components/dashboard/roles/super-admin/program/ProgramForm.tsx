@@ -210,7 +210,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
         status: program.status,
         termSystem: program.termSystem ? {
             type: program.termSystem.type,
-            terms: program.termSystem.terms.map((term: any) => ({
+            terms: program.termSystem?.terms?.map((term: any) => ({
                 name: term.name,
                 startDate: new Date(term.startDate),
                 endDate: new Date(term.endDate),
@@ -221,7 +221,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
                     endDate: new Date(period.endDate),
                     weight: period.weight
                 })) || []
-            }))
+            })) || [],
         } : undefined,
         assessmentSystem: {
             type: program.assessmentSystem.type,
