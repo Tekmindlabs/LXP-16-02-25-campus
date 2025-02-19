@@ -76,24 +76,31 @@ export const campusRouter = createTRPCRouter({
           data: {
             userId: ctx.session?.user?.id,
             campusId: campus.id,
-            roleId: CampusRoleType.CAMPUS_ADMIN, // Direct assignment of roleId
-            permissions: {
-              create: [
-                CampusPermission.MANAGE_CAMPUS_CLASSES,
-                CampusPermission.MANAGE_CAMPUS_TEACHERS,
-                CampusPermission.MANAGE_CAMPUS_STUDENTS,
-                CampusPermission.MANAGE_CAMPUS_TIMETABLES,
-                CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
-                CampusPermission.VIEW_CAMPUS_ANALYTICS,
-                CampusPermission.VIEW_PROGRAMS,
-                CampusPermission.VIEW_CLASS_GROUPS
-              ].map(permissionId => ({
-                permissionId,
-                campusId: campus.id
-              }))
-            }
+            roleId: CampusRoleType.CAMPUS_ADMIN,
           },
         });
+        
+        // Create permissions separately
+        const permissionCreates = [
+          CampusPermission.MANAGE_CAMPUS_CLASSES,
+          CampusPermission.MANAGE_CAMPUS_TEACHERS,
+          CampusPermission.MANAGE_CAMPUS_STUDENTS,
+          CampusPermission.MANAGE_CAMPUS_TIMETABLES,
+          CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
+          CampusPermission.VIEW_CAMPUS_ANALYTICS,
+          CampusPermission.VIEW_PROGRAMS,
+          CampusPermission.VIEW_CLASS_GROUPS
+        ].map(permissionId => 
+          tx.rolePermission.create({
+            data: {
+              roleId: campusRole.roleId,
+              permissionId,
+              campusId: campus.id
+            }
+          })
+        );
+        
+        await Promise.all(permissionCreates);
 
         console.log('Campus role created:', campusRole.id);
 
