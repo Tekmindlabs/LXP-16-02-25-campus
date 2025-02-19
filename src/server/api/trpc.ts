@@ -5,19 +5,24 @@ import { ZodError } from "zod";
 import { Permission, DefaultRoles } from "@/utils/permissions";
 import { getServerAuthSession } from "@/server/auth";
 import { prisma } from "@/server/db";
-import type { Session, DefaultSession } from "next-auth";
+import type { Session } from "next-auth";
+import type { DefaultSession } from "next-auth/types";
 
 export const isServer = () => typeof window === 'undefined';
 
 
 // Extend Session type to include roles
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
       roles: string[];
       permissions: string[];
-    } & DefaultSession["user"];
+    } & {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    }
   }
 
   interface User {
@@ -25,7 +30,8 @@ declare module "next-auth" {
     roles: string[];
     permissions: string[];
   }
-}
+  
+
 
 
 export type Context = {

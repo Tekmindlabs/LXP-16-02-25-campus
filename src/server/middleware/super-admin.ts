@@ -1,9 +1,10 @@
 // In /src/server/middleware/super-admin.ts
 import { t } from "../api/trpc";
 import { TRPCError } from "@trpc/server";
-import { DefaultRoles } from "@prisma/client";
+import { DefaultRoles } from "@/utils/permissions";
+import type { Context } from "../api/trpc";
 
-export const superAdminMiddleware = t.middleware(async ({ ctx, next }) => {
+export const superAdminMiddleware = t.middleware(async ({ ctx, next }: { ctx: Context; next: () => Promise<any> }) => {
 	if (!ctx.session?.user) {
 		throw new TRPCError({ code: 'UNAUTHORIZED' });
 	}
