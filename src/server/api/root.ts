@@ -1,3 +1,4 @@
+import { academicCalendarRouter } from "./routers/academic-calendar";
 import { createTRPCRouter } from "./trpc";
 import { activityRouter } from "./routers/activity";
 import { curriculumRouter } from "./routers/curriculum";
