@@ -319,12 +319,12 @@ export const programRouter = createTRPCRouter({
             calendar: { connect: { id: input.calendarId } },
             coordinator: input.coordinatorId ? { connect: { id: input.coordinatorId } } : undefined,
             campuses: {
-              connect: input.campusId.map(id => ({ id }))
+              connect: input.campusId.map((id: string) => ({ id }))
             },
             status: input.status,
             termSystem: input.termSystem?.type,
             termStructures: input.termSystem ? {
-              create: input.termSystem.terms.map((term, index) => ({
+              create: input.termSystem.terms.map((term: any, index: number) => ({
               name: term.name,
               startDate: term.startDate,
               endDate: term.endDate,
@@ -347,7 +347,7 @@ export const programRouter = createTRPCRouter({
             } : undefined,
 
             ...(input.assessmentSystem && {
-            assessmentSystem: input.assessmentSystem ? {
+              assessmentSystem: input.assessmentSystem ? {
               create: {
               name: input.name + " Assessment System",
               type: input.assessmentSystem.type,
