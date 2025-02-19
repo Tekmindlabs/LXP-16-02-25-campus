@@ -205,7 +205,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
         name: program.name,
         description: program.description,
         calendarId: program.calendarId,
-        campusId: program.campusIds || [], // Change to support multiple campuses
+        campusId: Array.isArray(program.campusIds) ? program.campusIds : [], // Ensure campusIds is always an array
         coordinatorId: program.coordinatorId,
         status: program.status,
         termSystem: program.termSystem ? {
@@ -223,11 +223,16 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
                 })) || []
             })) || [],
         } : undefined,
-        assessmentSystem: {
-            type: program.assessmentSystem.type,
+        assessmentSystem: program.assessmentSystem ? {
+            type: program.assessmentSystem.type as AssessmentSystemType,
             markingScheme: program.assessmentSystem.markingScheme,
             rubric: program.assessmentSystem.rubric,
             cgpaConfig: program.assessmentSystem.cgpaConfig
+        } : {
+            type: 'STANDARD' as AssessmentSystemType,
+            markingScheme: 'PERCENTAGE',
+            rubric: null,
+            cgpaConfig: null
         }
     };
 };

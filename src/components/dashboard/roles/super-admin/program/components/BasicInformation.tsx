@@ -81,16 +81,17 @@ export const BasicInformation = ({ formData, calendars, coordinators, campuses, 
 
 			<div>
 				<Label htmlFor="campus">Campus</Label>
-				<MultiSelect
-					options={campuses.map(campus => ({
-						value: campus.id,
-						label: campus.name
-					}))}
-					selected={formData.campusId}
-					onChange={(selected) => onFormDataChange({ campusId: selected })}
-					placeholder="Select Campuses"
-					className="w-full"
-				/>
+				<div className="w-full">
+					<MultiSelect
+						options={campuses.map(campus => ({
+							value: campus.id,
+							label: campus.name
+						}))}
+						value={formData.campusId}
+						onChange={(selected) => onFormDataChange({ campusId: selected })}
+						placeholder="Select Campuses"
+					/>
+				</div>
 			</div>
 
 			<div>

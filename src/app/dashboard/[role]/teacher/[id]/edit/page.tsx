@@ -19,7 +19,7 @@ export default async function EditTeacherPage({
 	params: { id: string; role: string }
 }) {
 	// Fetch initial data server-side
-	const teacher = (await api.teacher.getById.query(params.id)) as Partial<Teacher>;
+	const teacher = await api.teacher.getById.query(params.id) as Partial<Teacher>;
 	const subjects = await api.subject.searchSubjects.query({});
 	const classes = await api.class.searchClasses.query({});
 		
