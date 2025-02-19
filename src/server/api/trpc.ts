@@ -73,55 +73,40 @@ export const createTRPCContext = async (opts?: CreateNextContextOptions) => {
   const session = await getServerAuthSession();
 
   if (session?.user) {
-    const userWithRoles = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                permissions: {
-                  include: {
-                    permission: true
+    // Directly check for super-admin role from token
+    const isSuperAdmin = session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
+    
+    if (isSuperAdmin) {
+      // For super admin, set roles and permissions directly
+      session.user.roles = [DefaultRoles.SUPER_ADMIN];
+      const allPermissions = await prisma.permission.findMany();
+      session.user.permissions = allPermissions.map(p => p.name);
+    } else {
+      // For other users, load from database
+      const userWithRoles = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+          userRoles: {
+            include: {
+              role: {
+                include: {
+                  permissions: {
+                    include: {
+                      permission: true
+                    }
                   }
                 }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    const assignedRoles = userWithRoles?.userRoles?.map(ur => ur.role.name) || [];
-    const userPermissions = userWithRoles?.userRoles.flatMap(
-      (userRole: { role: { permissions: Array<{ permission: { name: string } }> } }) =>
-      userRole.role.permissions.map((rp) => rp.permission.name)
-    ) || [];
-
-    // If user has super-admin role, keep it exclusive and include all permissions
-    if (assignedRoles.includes(DefaultRoles.SUPER_ADMIN)) {
-      session.user.roles = [DefaultRoles.SUPER_ADMIN];
-      const allPermissions = await prisma.permission.findMany();
-      session.user.permissions = allPermissions.map(p => p.name);
-    } else {
-      session.user.roles = assignedRoles;
-      session.user.permissions = userPermissions;
+      session.user.roles = userWithRoles?.userRoles?.map(ur => ur.role.name) || [];
+      session.user.permissions = userWithRoles?.userRoles.flatMap(
+        userRole => userRole.role.permissions.map(rp => rp.permission.name)
+      ) || [];
     }
-
-    // Ensure roles and permissions are properly set in the session
-    session.user = {
-      ...session.user,
-      roles: session.user.roles || [],
-      permissions: session.user.permissions || []
-    };
-
-    console.log('TRPC Context Created:', {
-      hasSession: true,
-      userId: session.user.id,
-      userRoles: session.user.roles,
-      userPermissions: session.user.permissions,
-      assignedRoles
-    });
   }
 
   return {
@@ -131,6 +116,7 @@ export const createTRPCContext = async (opts?: CreateNextContextOptions) => {
     userPermissions: session?.user?.permissions || []
   };
 };
+
 
 
 

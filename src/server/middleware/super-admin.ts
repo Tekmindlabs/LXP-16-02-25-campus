@@ -1,25 +1,26 @@
 // In /src/server/middleware/super-admin.ts
-import { createTRPCRouter, protectedProcedure } from "../api/trpc";
 import { TRPCError } from "@trpc/server";
+import { middleware } from "../api/trpc";
 import { DefaultRoles } from "@/utils/permissions";
-import type { Context } from "../api/trpc";
 
-export const superAdminMiddleware = protectedProcedure.use(
-  async ({ ctx, next }) => {
-    if (!ctx.session?.user) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' });
-    }
-
-    const isSuperAdmin = ctx.session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
-    const hasManagePermission = ctx.session.user.permissions?.includes('campus:manage');
-
-    if (!isSuperAdmin && !hasManagePermission) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: 'Insufficient permissions'
-      });
-    }
-
-    return next();
+export const verifySuperAdmin = middleware(async ({ ctx, next }) => {
+  if (!ctx.session?.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED' });
   }
-);
+
+  const isSuperAdmin = ctx.session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
+  
+  if (!isSuperAdmin) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Super admin access required'
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.session.user
+    }
+  });
+});
