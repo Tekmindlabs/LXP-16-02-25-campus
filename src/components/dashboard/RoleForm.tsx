@@ -62,7 +62,7 @@ export function RoleForm({
   onCancel,
   isLoading = false,
 }: RoleFormProps) {
-  const { data: permissions } = api.permission.getAll.useQuery<PermissionQueryResult[]>();
+  const { data: permissions = [] } = api.permission.getAll.useQuery<Permission[]>();
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: initialData || {
@@ -88,35 +88,36 @@ export function RoleForm({
                 </FormDescription>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {permissions?.map((permission: PermissionQueryResult) => (
+                {permissions.map((permission) => (
                   <FormField
                     key={permission.id}
                     control={form.control}
                     name="permissions"
-                    render={({ field }) => {
-                      return (
-                        <FormItem
-                          key={permission.id}
-                          className="flex flex-row items-start space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value?.includes(permission.id)}
-                              onCheckedChange={(checked) => {
-                                return checked
-                                  ? field.onChange([...field.value, permission.id])
-                                  : field.onChange(
-                                      field.value?.filter((value) => value !== permission.id)
-                                    );
-                              }}
-                            />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            {permission.name}
-                          </FormLabel>
-                        </FormItem>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <FormItem
+                        key={permission.id}
+                        className="flex flex-row items-start space-x-3 space-y-0"
+                      >
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value?.includes(permission.id)}
+                            onCheckedChange={(checked) => {
+                              return checked
+                                ? field.onChange([...field.value, permission.id])
+                                : field.onChange(
+                                    field.value?.filter((value) => value !== permission.id)
+                                  );
+                            }}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-normal">{permission.name}</FormLabel>
+                          {permission.description && (
+                            <FormDescription>{permission.description}</FormDescription>
+                          )}
+                        </div>
+                      </FormItem>
+                    )}
                   />
                 ))}
               </div>

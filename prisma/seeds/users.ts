@@ -323,36 +323,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 		...createdParents.filter((user): user is User => user !== null)
 	];
 
-	// Create campus roles separately after creating users
-
-  const campusAdminRole = await prisma.role.findFirst({
-    where: { name: 'CAMPUS_ADMIN' },
-  });
-
-  const campusTeacherRole = await prisma.role.findFirst({
-    where: { name: 'CAMPUS_TEACHER' },
-  });
-
-	await Promise.all([
-
-		// Campus admin role
-		await prisma.campusRole.create({
-			data: {
-				userId: campusAdminUser.id,
-				campusId: campus.id,
-				roleId: campusAdminRole?.id || '',
-			}
-		}),
-		// Teacher roles
-		...createdTeachers.map(async (teacher) => await prisma.campusRole.create({
-			data: {
-				userId: teacher.id,
-				campusId: campus.id,
-				roleId: campusTeacherRole?.id || '',
-			}
-		}))
-	]);
-
 	console.log('Users seeded successfully');
 	return { users: validUsers, campus };
 }
