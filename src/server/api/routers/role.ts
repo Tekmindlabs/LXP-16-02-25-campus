@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 import type { RolePermission, Role } from '@prisma/client';
 import type { Context } from '../trpc';
+import { roleFormSchema } from '@/components/dashboard/RoleForm';
 
 type RecursiveRole = Role & {
   parent: RecursiveRole | null;
@@ -9,6 +10,36 @@ type RecursiveRole = Role & {
 };
 
 export const roleRouter = createTRPCRouter({
+  getAll: protectedProcedure.query(({ ctx }) => {
+    return ctx.prisma.role.findMany({
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+    });
+  }),
+
+  create: protectedProcedure
+    .input(roleFormSchema)
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.role.create({
+        data: {
+          name: input.name,
+          description: input.description,
+          context: input.context,
+          permissions: {
+            create: input.permissions.map((permissionId) => ({
+              permission: {
+                connect: { id: permissionId },
+              },
+            })),
+          },
+        },
+      });
+    }),
   getInheritedPermissions: protectedProcedure
     .input(z.object({ roleId: z.string() }))
     .query(async ({ ctx, input }: { ctx: Context; input: { roleId: string } }) => {

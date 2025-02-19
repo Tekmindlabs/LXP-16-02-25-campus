@@ -10,11 +10,11 @@ import {
   LuCalendar, 
   LuGraduationCap, 
   LuUsers, 
-  LuSettings, 
-  LuBookOpen, 
-  LuClock, 
-  LuHouse, 
-  LuMessageSquare, 
+  LuSettings,
+  LuBookOpen,
+  LuClock,
+  LuHouse,
+  LuMessageSquare,
   LuBell,
   LuUserCog,
   LuActivity,
@@ -22,7 +22,8 @@ import {
   LuClipboardCheck,
   LuMenu,
   LuX,
-  LuBuilding
+  LuBuilding,
+  LuShieldCheck
 } from "react-icons/lu";
 import { type FC } from "react";
 
@@ -123,6 +124,11 @@ const menuItems: MenuItem[] = [
     title: "Notifications",
     href: "/dashboard/[role]/notification",
     icon: LuBell,
+  },
+  {
+    title: "Roles & Permissions",
+    href: "/dashboard/super-admin/settings/roles",
+    icon: LuShieldCheck,
   },
   {
     title: "Settings",

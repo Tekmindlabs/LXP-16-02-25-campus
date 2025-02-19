@@ -326,23 +326,22 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 	];
 
 	// Create campus roles separately after creating users
+
+  const campusAdminRole = await prisma.role.findFirst({
+    where: { name: 'CAMPUS_ADMIN' },
+  });
+
+  const campusTeacherRole = await prisma.role.findFirst({
+    where: { name: 'CAMPUS_TEACHER' },
+  });
+
 	await Promise.all([
 		// Add super admin campus role
 		await prisma.campusRole.create({
 			data: {
 				userId: users[0]?.id || '', // Super admin is the first user
 				campusId: campus.id,
-				role: 'CAMPUS_ADMIN',
-				permissions: [
-					'MANAGE_CAMPUS_CLASSES',
-					'MANAGE_CAMPUS_TEACHERS',
-					'MANAGE_CAMPUS_STUDENTS',
-					'MANAGE_CAMPUS_TIMETABLES',
-					'MANAGE_CAMPUS_ATTENDANCE',
-					'VIEW_CAMPUS_ANALYTICS',
-					'VIEW_PROGRAMS',
-					'VIEW_CLASS_GROUPS'
-				]
+				roleId: campusAdminRole?.id || '',
 			}
 		}),
 		// Campus admin role
@@ -350,17 +349,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 			data: {
 				userId: campusAdminUser.id,
 				campusId: campus.id,
-				role: 'CAMPUS_ADMIN',
-				permissions: [
-					'MANAGE_CAMPUS_CLASSES',
-					'MANAGE_CAMPUS_TEACHERS',
-					'MANAGE_CAMPUS_STUDENTS',
-					'MANAGE_CAMPUS_TIMETABLES',
-					'MANAGE_CAMPUS_ATTENDANCE',
-					'VIEW_CAMPUS_ANALYTICS',
-					'VIEW_PROGRAMS',
-					'VIEW_CLASS_GROUPS'
-				]
+				roleId: campusAdminRole?.id || '',
 			}
 		}),
 		// Teacher roles
@@ -368,12 +357,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<SeedUsersResult> 
 			data: {
 				userId: teacher.id,
 				campusId: campus.id,
-				role: 'CAMPUS_TEACHER',
-				permissions: [
-					'MANAGE_CAMPUS_ATTENDANCE',
-					'VIEW_PROGRAMS',
-					'VIEW_CLASS_GROUPS'
-				]
+				roleId: campusTeacherRole?.id || '',
 			}
 		}))
 	]);

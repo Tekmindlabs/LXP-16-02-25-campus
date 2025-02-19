@@ -1,9 +1,9 @@
 'use client';
 
-import { useForm, UseFormReturn } from "react-hook-form";
-import { useState, useEffect } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useForm, UseFormReturn } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { MultiSelect } from '@/components/ui/multi-select';
 
@@ -109,46 +109,81 @@ interface ActivityResponse {
 }
 
 
+import { ActivityScope } from "@/types/class-activity";
+
 interface Props {
-	activityId?: string;
-	onClose: () => void;
+  activityId?: string;
+  onClose: () => void;
 }
 
-export default function ClassActivityForm({ activityId, onClose }: Props) {
+// Implement ActivityFormManager
+const ActivityFormManager = {
+  baseFields: ['title', 'description', 'type'] as const,
+  curriculumExtension: ['learningObjectives', 'prerequisites'] as const,
+  classExtension: ['deadline', 'classGroups'] as const,
 
-	const { toast } = useToast();
-	const utils = api.useUtils();
-	const [isLoading, setIsLoading] = useState(false);
+  validateCommon(data: FormData) {
+    const errors: Record<string, string> = {};
+    
+    if (!data.title?.trim()) {
+      errors.title = 'Title is required';
+    }
+    
+    if (!data.type) {
+      errors.type = 'Activity type is required';
+    }
+    
+    return errors;
+  },
 
-	const form = useForm<FormData>({
-		resolver: zodResolver(formSchema),
-		defaultValues: {
-			title: "",
-			description: "",
-			type: ActivityType.CLASS_ASSIGNMENT,
-			classId: undefined,
-			subjectIds: [],
-			teacherAssignments: [],
-			classGroupId: undefined,
-			inheritCalendar: true,
+  validateScope(data: FormData, scope: ActivityScope) {
+    const errors: Record<string, string> = {};
+    
+    if (scope === ActivityScope.CURRICULUM && !data.subjectIds?.length) {
+      errors.subjectIds = 'At least one subject is required for curriculum activities';
+    }
+    
+    if (scope === ActivityScope.CLASS && !data.classId) {
+      errors.classId = 'Class is required for class activities';
+    }
+    
+    return errors;
+  },
 
-			configuration: {
-				activityMode: ActivityMode.IN_CLASS,
-				isGraded: true,
-				totalMarks: 100,
-				passingMarks: 40,
-				gradingType: ActivityGradingType.MANUAL,
-				availabilityDate: new Date(),
-				deadline: new Date(),
-				instructions: "",
-				timeLimit: undefined,
-				attempts: undefined,
-				viewType: ActivityViewType.STUDENT,
-				autoGradingConfig: undefined
-			},
-			resources: [],
-		},
-	});
+  getDefaultValues(): FormData {
+    return {
+      title: '',
+      description: '',
+      type: ActivityType.ASSIGNMENT,
+      subjectIds: [],
+      teacherAssignments: [],
+      inheritCalendar: true,
+      configuration: {
+        activityMode: ActivityMode.INDIVIDUAL,
+        isGraded: false,
+        totalMarks: 100,
+        passingMarks: 40,
+        gradingType: ActivityGradingType.NUMERIC,
+        availabilityDate: new Date(),
+        deadline: new Date(),
+        viewType: ActivityViewType.SEQUENTIAL,
+        instructions: '',
+      },
+      resources: []
+    };
+  }
+};
+
+const ClassActivityForm: React.FC<Props> = ({ activityId, onClose }) => {
+
+  const { toast } = useToast();
+  const utils = api.useUtils();
+  const [isLoading, setIsLoading] = useState(false);
+
+    const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: ActivityFormManager.getDefaultValues()
+  });
 
 	const { data: classes = [], isLoading: classesLoading } = api.class.list.useQuery();
 	const { data: subjects = [], isLoading: subjectsLoading } = api.subject.getSubjectsByClassId.useQuery(
@@ -160,169 +195,82 @@ export default function ClassActivityForm({ activityId, onClose }: Props) {
 	);
 
 	const { data: teachers = [], isLoading: teachersLoading } = api.teacher.searchTeachers.useQuery({});
-	const { data: classGroups = [], isLoading: classGroupsLoading } = api.classGroup.list.useQuery();
+  const { data: classGroups = [], isLoading: classGroupsLoading } = api.classGroup.list.useQuery();
 
 
 
-	useEffect(() => {
-		if (form.watch('classId')) {
-			form.setValue('subjectIds', []);
-			form.setValue('teacherAssignments', []);
-		}
-	}, [form.watch('classId'), form]);
+  useEffect(() => {
+    if (form.watch('classId')) {
+      form.setValue('subjectIds', []);
+      form.setValue('teacherAssignments', []);
+    }
+  }, [form.watch('classId'), form]);
+
+  useEffect(() => {
+    if (activityId) {
+      utils.classActivity.getById.fetch(activityId)
+        .then((data: ActivityResponse) => {
+          form.reset(data);
+        });
+    }
+  }, [activityId, utils.classActivity.getById, form]);
+
+    const onSubmit = (data: FormData) => {
+        if (activityId) {
+            updateMutation.mutate({ id: activityId, ...data });
+        } else {
+            createMutation.mutate(data);
+        }
+    };
 
 
+  const createMutation = api.classActivity.create.useMutation({
+    onMutate: () => {
+      setIsLoading(true);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Activity created successfully",
+      });
+      utils.classActivity.getAll.invalidate();
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsLoading(false);
+    }
+  });
 
-
-	const createMutation = api.classActivity.create.useMutation({
-		onMutate: () => {
-			setIsLoading(true);
-		},
-		onSuccess: () => {
-			toast({
-				title: "Success",
-				description: "Activity created successfully",
-			});
-			utils.classActivity.getAll.invalidate();
-			onClose();
-		},
-		onError: (error) => {
-			toast({
-				title: "Error",
-				description: error.message,
-				variant: "destructive",
-			});
-		},
-		onSettled: () => {
-			setIsLoading(false);
-		}
-	});
-
-	const updateMutation = api.classActivity.update.useMutation({
-		onMutate: () => {
-			setIsLoading(true);
-		},
-		onSuccess: () => {
-			toast({
-				title: "Success",
-				description: "Activity updated successfully",
-			});
-			utils.classActivity.getAll.invalidate();
-			onClose();
-		},
-		onError: (error) => {
-			toast({
-				title: "Error",
-				description: error.message,
-				variant: "destructive",
-			});
-		},
-		onSettled: () => {
-			setIsLoading(false);
-		}
-	});
-
-	useEffect(() => {
-		if (activityId) {
-			setIsLoading(true);
-			utils.classActivity.getById.fetch(activityId)
-				.then((activity: ActivityResponse) => {
-					if (activity) {
-						const config = activity.configuration as ActivityConfiguration;
-						const resources = (activity.resources as unknown as ActivityResource[]) || [];
-						
-						const formData = {
-							title: activity.title,
-							description: activity.description || "",
-							type: activity.type as ActivityType,
-							classId: activity.classId || undefined,
-							subjectIds: Array.isArray(activity.subjectId) ? activity.subjectId : [activity.subjectId],
-							teacherAssignments: activity.teacherAssignments || [],
-							classGroupId: activity.classGroupId || undefined,
-
-							inheritCalendar: activity.classGroup?.calendar?.inheritSettings ?? true,
-							configuration: {
-								activityMode: config.activityMode,
-								isGraded: config.isGraded,
-								totalMarks: config.totalMarks,
-								passingMarks: config.passingMarks,
-								gradingType: config.gradingType,
-								availabilityDate: new Date(config.availabilityDate),
-								deadline: new Date(config.deadline),
-								instructions: config.instructions || "",
-								timeLimit: config.timeLimit,
-								attempts: config.attempts,
-								viewType: config.viewType,
-								autoGradingConfig: config.autoGradingConfig
-							},
-							resources: resources
-						};
-
-						form.reset(formData);
-					}
-				})
-				.catch((error) => {
-					console.error('Error fetching activity:', error);
-					toast({
-						title: "Error",
-						description: "Failed to load activity",
-						variant: "destructive",
-					});
-				})
-				.finally(() => {
-					setIsLoading(false);
-				});
-		} else {
-			setIsLoading(false);
-		}
-	}, [activityId, utils.classActivity, form, toast]);
-
-	const onSubmit = async (data: FormData) => {
-		try {
-			const formData = {
-				...data,
-				classId: data.classId || "",
-				subjectId: data.subjectIds[0], // Primary subject
-				configuration: {
-					...data.configuration,
-					availabilityDate: new Date(data.configuration.availabilityDate),
-					deadline: new Date(data.configuration.deadline)
-				},
-				calendar: {
-					inheritSettings: data.inheritCalendar,
-					id: data.classGroupId || ""
-				}
-			};
-
-			if (activityId) {
-				await updateMutation.mutateAsync({
-					id: activityId,
-					...formData
-				});
-			} else {
-				await createMutation.mutateAsync(formData);
-			}
-			
-			toast({
-				title: "Success",
-				description: `Activity ${activityId ? "updated" : "created"} successfully`,
-			});
-			utils.classActivity.getAll.invalidate();
-			onClose();
-		} catch (error) {
-			console.error(error);
-			toast({
-				title: "Error",
-				description: "Failed to save activity",
-				variant: "destructive",
-			});
-		}
-	};
-
-
-
-
-
+  const updateMutation = api.classActivity.update.useMutation({
+    onMutate: () => {
+      setIsLoading(true);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Activity updated successfully",
+      });
+      utils.classActivity.getAll.invalidate();
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsLoading(false);
+    }
+  });
 
 	const isLoadingData = classesLoading || subjectsLoading || classGroupsLoading || teachersLoading || isLoading;
 
