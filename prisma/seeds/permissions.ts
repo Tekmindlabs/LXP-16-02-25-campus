@@ -112,14 +112,14 @@ export async function seedPermissions(prisma: PrismaClient) {
 						roleId_permissionId_campusId: {
 							roleId: role.id,
 							permissionId: permission.id,
-              campusId: null // Assuming campusId can be null for global permissions - changed back to null
+              campusId: null // Assuming campusId can be null for global permissions
 						}
 					},
 					update: {},
 					create: {
 						roleId: role.id,
 						permissionId: permission.id,
-              campusId: null // Assuming campusId can be null for global permissions - changed back to null
+              campusId: null // Assuming campusId can be null for global permissions
 					}
 				});
 			})
