@@ -20,8 +20,8 @@ const formSchema = z.object({
   programIds: z.array(z.string()).min(1, "At least one program must be selected"),
   campusId: z.string().optional()
     .refine(
-      (val, ctx) => {
-        const type = ctx.parent.type;
+      (val: string | undefined, ctx: z.RefinementCtx) => {
+        const type = (ctx.path[0] as any)?.parent?.type;
         if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
