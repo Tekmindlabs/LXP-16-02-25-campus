@@ -41,6 +41,8 @@ interface Coordinator {
 interface SearchFilters {
 	search: string;
 	programId?: string;
+	campusId?: string;
+	type?: 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR';
 	status?: Status;
 }
 
@@ -56,6 +58,7 @@ export const CoordinatorManagement = () => {
 		page: 1,
 		pageSize: 100,
 	});
+	const { data: campuses } = api.campus.getAll.useQuery();
 
 	if (isLoading) {
 		return <div>Loading...</div>;
@@ -94,6 +97,38 @@ export const CoordinatorManagement = () => {
 											{program.name}
 										</SelectItem>
 									))}
+								</SelectContent>
+							</Select>
+							<Select
+								value={filters.campusId || "ALL"}
+								onValueChange={(value) => setFilters({ ...filters, campusId: value === "ALL" ? undefined : value })}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Filter by Campus" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="ALL">All Campuses</SelectItem>
+									{campuses?.map((campus) => (
+										<SelectItem key={campus.id} value={campus.id}>
+											{campus.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							<Select
+								value={filters.type || "ALL"}
+								onValueChange={(value) => setFilters({ 
+									...filters, 
+									type: value === "ALL" ? undefined : value as 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR' 
+								})}
+							>
+								<SelectTrigger className="w-[200px]">
+									<SelectValue placeholder="Filter by Type" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="ALL">All Types</SelectItem>
+									<SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
+									<SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
 								</SelectContent>
 							</Select>
 							<Select
