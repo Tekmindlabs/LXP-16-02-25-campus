@@ -168,15 +168,19 @@ export const CoordinatorManagement = () => {
 										setShowDetails(true);
 									}}
 								/>
-								<CoordinatorForm 
-									selectedCoordinator={coordinators?.find(c => c.id === selectedCoordinatorId)}
-									programs={programData?.programs?.map((program) => ({
-										id: program.id,
-										name: program.name || '',
-										level: program.classGroups?.[0]?.name || 'Unknown'
-									})) || []}
-									onSuccess={() => setSelectedCoordinatorId(null)}
-								/>
+								{selectedCoordinatorId && !showDetails ? (
+									<CoordinatorForm
+										selectedCoordinator={coordinators?.find(c => c.id === selectedCoordinatorId)}
+										programs={programData?.programs?.map((program) => ({
+											id: program.id,
+											name: program.name || '',
+											level: program.classGroups?.[0]?.name || 'Unknown',
+											campuses: program.campuses
+										})) || []}
+										campuses={campuses || []}
+										onSuccess={() => setSelectedCoordinatorId(null)}
+									/>
+								) : null}
 							</>
 						)}
 					</div>
