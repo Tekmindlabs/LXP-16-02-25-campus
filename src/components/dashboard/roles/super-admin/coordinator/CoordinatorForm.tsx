@@ -18,7 +18,8 @@ const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR']),
   programIds: z.array(z.string()).min(1, "At least one program must be selected"),
-  campusId: z.string().optional()
+  campusId: z.string()
+    .optional()
     .refine(
       (val: string | undefined, ctx: z.RefinementCtx) => {
         const type = (ctx.path[0] as any)?.parent?.type;

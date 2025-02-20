@@ -12,7 +12,8 @@ import { api } from "@/utils/api";
 import { CoordinatorList } from "./CoordinatorList";
 import { CoordinatorForm } from "./CoordinatorForm";
 import { CoordinatorDetails } from "./CoordinatorDetails";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface Coordinator {
 	id: string;
