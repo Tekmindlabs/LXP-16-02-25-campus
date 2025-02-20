@@ -14,12 +14,16 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { api } from "@/utils/api";
 
 const formSchema = z.object({
-	name: z.string().min(1, "Name is required"),
+
+	name: z.string().min(1, "Name is required"), 
 	email: z.string().email("Invalid email address"),
+	type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR']),
 	programIds: z.array(z.string()).min(1, "At least one program must be selected"),
-	responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"),
+	campusId: z.string().optional(), 
+	responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"), 
 	status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
-});
+  
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -34,10 +38,11 @@ interface CoordinatorFormProps {
 		};
 	};
 	programs: { id: string; name: string; level: string }[];
+	campuses: { id: string; name: string }[];
 	onSuccess: () => void;
 }
 
-export const CoordinatorForm = ({ selectedCoordinator, programs, onSuccess }: CoordinatorFormProps) => {
+export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuccess }: CoordinatorFormProps) => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const defaultResponsibilities = [
@@ -54,6 +59,7 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, onSuccess }: Co
 		defaultValues: {
 			name: selectedCoordinator?.name || "",
 			email: selectedCoordinator?.email || "",
+			type: "PROGRAM_COORDINATOR",
 			programIds: selectedCoordinator?.coordinatorProfile.programs.map(p => p.id) || [],
 			responsibilities: [],
 			status: selectedCoordinator?.status || Status.ACTIVE,
@@ -121,6 +127,55 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, onSuccess }: Co
 						</FormItem>
 					)}
 				/>
+
+				<FormField
+					control={form.control}
+					name="type"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Coordinator Type</FormLabel>
+							<Select onValueChange={field.onChange} value={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder="Select type" />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
+									<SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				{form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' && (
+					<FormField
+						control={form.control}
+						name="campusId"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Campus</FormLabel>
+								<Select onValueChange={field.onChange} value={field.value || ""}>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Select campus" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{campuses.map(campus => (
+											<SelectItem key={campus.id} value={campus.id}>
+												{campus.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
 
 				<FormField
 					control={form.control}

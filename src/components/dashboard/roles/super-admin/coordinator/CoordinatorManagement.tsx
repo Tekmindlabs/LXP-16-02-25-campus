@@ -1,17 +1,7 @@
 'use client';
 
-interface Coordinator {
-	id: string;
-	name: string;
-	email: string;
-	status: Status;
-	coordinatorProfile: {
-		programs: {
-			id: string;
-			name: string;
-		}[];
-	};
-}
+
+
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +13,30 @@ import { CoordinatorList } from "./CoordinatorList";
 import { CoordinatorForm } from "./CoordinatorForm";
 import { CoordinatorDetails } from "./CoordinatorDetails";
 
+
+interface Coordinator {
+	id: string;
+	name: string;
+	email: string;
+	status: Status;
+	type: 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR';
+	coordinatorProfile: {
+	  programs: {
+		id: string;
+		name: string;
+	  }[];
+	  campus?: {
+		id: string;
+		name: string;
+	  };
+	  inheritedPrograms?: {
+		id: string;
+		name: string;
+	  }[];
+	};
+  }
+
+  
 interface SearchFilters {
 	search: string;
 	programId?: string;
