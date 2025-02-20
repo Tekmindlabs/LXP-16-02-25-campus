@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,7 +18,7 @@ export const CoordinatorTransfer = ({
 }: CoordinatorTransferProps) => {
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
-  const toast = useToast();
+  const { toast } = useToast();
 
   const { data: availableCoordinators } = api.coordinator.searchCoordinators.useQuery({
     status: "ACTIVE",
@@ -60,15 +60,18 @@ export const CoordinatorTransfer = ({
 
   return (
     <div className="space-y-4">
-      <Select
-        value={selectedCoordinatorId}
-        onValueChange={setSelectedCoordinatorId}
-        options={availableCoordinators?.map(c => ({
-          value: c.id,
-          label: c.name,
-        }))}
-        placeholder="Select new coordinator"
-      />
+      <Select value={selectedCoordinatorId} onValueChange={setSelectedCoordinatorId}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select new coordinator" />
+        </SelectTrigger>
+        <SelectContent>
+          {availableCoordinators?.map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         placeholder="Transfer notes"
         value={transferNotes}
@@ -76,7 +79,7 @@ export const CoordinatorTransfer = ({
       />
       <Button
         onClick={handleTransfer}
-        disabled={transferMutation.isLoading}
+        disabled={transferMutation.isPending}
       >
         Transfer Program
       </Button>

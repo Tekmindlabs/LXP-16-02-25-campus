@@ -60,7 +60,11 @@ export const Permissions = {
   SUBJECT_ASSIGN_TEACHERS: "subject:assign-teachers",
 } as const;
 
-export type Permission = typeof Permissions[keyof typeof Permissions];
+// Type definitions for permissions
+export type PermissionString = typeof Permissions[keyof typeof Permissions];
+export type CoordinatorPermissionString = typeof COORDINATOR_PERMISSIONS[keyof typeof COORDINATOR_PERMISSIONS];
+export type AllPermissions = PermissionString | CoordinatorPermissionString;
+export type Permission = PermissionString;
 
 export enum DefaultRoles {
   ADMIN = "admin",
@@ -79,6 +83,61 @@ export const COORDINATOR_PERMISSIONS = {
   MANAGE_COORDINATOR_HIERARCHY: "MANAGE_COORDINATOR_HIERARCHY",
   ASSIGN_PROGRAMS: "ASSIGN_PROGRAMS",
   TRANSFER_COORDINATOR: "TRANSFER_COORDINATOR",
+} as const;
+
+export const RoleHierarchy: Record<DefaultRoles, DefaultRoles[]> = {
+  [DefaultRoles.SUPER_ADMIN]: [],
+  [DefaultRoles.ADMIN]: [DefaultRoles.CAMPUS_ADMIN],
+  [DefaultRoles.CAMPUS_ADMIN]: [DefaultRoles.COORDINATOR],
+  [DefaultRoles.COORDINATOR]: [DefaultRoles.TEACHER],
+  [DefaultRoles.TEACHER]: [],
+  [DefaultRoles.STUDENT]: [],
+  [DefaultRoles.PARENT]: []
+};
+
+export const PermissionGroups = {
+  USER_MANAGEMENT: [
+    Permissions.USER_CREATE,
+    Permissions.USER_READ,
+    Permissions.USER_UPDATE,
+    Permissions.USER_DELETE
+  ],
+  CAMPUS_MANAGEMENT: [
+    Permissions.CAMPUS_VIEW,
+    Permissions.CAMPUS_MANAGE,
+    Permissions.CAMPUS_DELETE
+  ],
+  ACADEMIC_MANAGEMENT: [
+    Permissions.ACADEMIC_CALENDAR_VIEW,
+    Permissions.ACADEMIC_CALENDAR_MANAGE,
+    Permissions.ACADEMIC_YEAR_MANAGE,
+    Permissions.EVENT_MANAGE
+  ],
+  PROGRAM_MANAGEMENT: [
+    Permissions.PROGRAM_VIEW,
+    Permissions.PROGRAM_MANAGE,
+    Permissions.PROGRAM_DELETE
+  ],
+  CLASS_MANAGEMENT: [
+    Permissions.CLASS_VIEW,
+    Permissions.CLASS_MANAGE,
+    Permissions.CLASS_DELETE,
+    Permissions.CLASS_ASSIGN_TEACHERS,
+    Permissions.CLASS_ASSIGN_STUDENTS
+  ],
+  GRADEBOOK_MANAGEMENT: [
+    Permissions.GRADEBOOK_VIEW,
+    Permissions.GRADEBOOK_OVERVIEW,
+    Permissions.GRADEBOOK_MANAGE,
+    Permissions.GRADE_ACTIVITY,
+    Permissions.GRADE_MODIFY
+  ],
+  SUBJECT_MANAGEMENT: [
+    Permissions.SUBJECT_VIEW,
+    Permissions.SUBJECT_MANAGE,
+    Permissions.SUBJECT_DELETE,
+    Permissions.SUBJECT_ASSIGN_TEACHERS
+  ]
 } as const;
 
 export const hasRole = (userRoles: string[], role: DefaultRoles) => {
@@ -157,18 +216,37 @@ export const RolePermissions: Record<DefaultRoles, Permission[]> = {
   ],
 };
 
-export function hasPermission(session: Session | null, permission: keyof typeof COORDINATOR_PERMISSIONS): boolean {
+import type { Session } from 'next-auth';
+
+export function hasPermission(
+  session: Session | null,
+  permission: Permission | keyof typeof COORDINATOR_PERMISSIONS
+): boolean {
   if (!session?.user?.role) return false;
 
-  // Add your permission checking logic here based on your role system
-  const permissionMap = {
-    SUPER_ADMIN: Object.values(COORDINATOR_PERMISSIONS),
-    ADMIN: [
+  const userRole = session.user.role as DefaultRoles;
+
+  // Check regular permissions
+  if (typeof permission === 'string' && permission in Permissions) {
+    return RolePermissions[userRole]?.includes(permission as Permission) ?? false;
+  }
+
+  // Check coordinator permissions
+  const coordinatorPermissionMap: Record<DefaultRoles, Array<keyof typeof COORDINATOR_PERMISSIONS>> = {
+    [DefaultRoles.SUPER_ADMIN]: Object.values(COORDINATOR_PERMISSIONS),
+    [DefaultRoles.ADMIN]: [
       COORDINATOR_PERMISSIONS.VIEW_COORDINATOR_STUDENTS,
       COORDINATOR_PERMISSIONS.ASSIGN_PROGRAMS,
     ],
-    // Add other roles as needed
+    [DefaultRoles.COORDINATOR]: [
+      COORDINATOR_PERMISSIONS.VIEW_COORDINATORS,
+      COORDINATOR_PERMISSIONS.VIEW_COORDINATOR_STUDENTS,
+    ],
+    [DefaultRoles.CAMPUS_ADMIN]: [],
+    [DefaultRoles.TEACHER]: [],
+    [DefaultRoles.STUDENT]: [],
+    [DefaultRoles.PARENT]: []
   };
 
-  return permissionMap[session.user.role]?.includes(permission) ?? false;
+  return coordinatorPermissionMap[userRole]?.includes(permission as keyof typeof COORDINATOR_PERMISSIONS) ?? false;
 }

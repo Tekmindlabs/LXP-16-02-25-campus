@@ -46,146 +46,154 @@ interface SearchFilters {
 	status?: Status;
 }
 
+interface Program {
+  id: string;
+  name: string | null;
+  classGroups?: { name: string }[];
+  campuses?: { id: string }[];
+}
+
 export const CoordinatorManagement = () => {
-	const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string | null>(null);
-	const [showDetails, setShowDetails] = useState(false);
-	const [filters, setFilters] = useState<SearchFilters>({
-		search: "",
-	});
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>({
+    search: "",
+  });
 
-	const { data: coordinators, isLoading } = api.coordinator.searchCoordinators.useQuery(filters) as { data: Coordinator[] | undefined, isLoading: boolean };
-	const { data: programData } = api.program.getAll.useQuery({
-		page: 1,
-		pageSize: 100,
-	});
-	const { data: campuses } = api.campus.getAll.useQuery();
+  const { data: coordinators, isLoading } = api.coordinator.searchCoordinators.useQuery(filters) as { data: Coordinator[] | undefined, isLoading: boolean };
+  const { data: programData } = api.program.getAll.useQuery(
+    {
+      page: 1,
+      pageSize: 100,
+    },
+    {
+      enabled: true
+    }
+  );
+  const { data: campuses } = api.campus.getAll.useQuery();
 
-	if (isLoading) {
-		return <div>Loading...</div>;
-	}
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
-	return (
-		<div className="space-y-4">
-			<Card>
-				<CardHeader>
-					<CardTitle>Program Coordinator Management</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="mb-6 space-y-4">
-						<div className="flex space-x-4">
-							<Input
-								placeholder="Search coordinators..."
-								value={filters.search}
-								onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-								className="max-w-sm"
-							/>
-							<Select
-								value={filters.programId || "ALL"}
-								onValueChange={(value) => setFilters({ ...filters, programId: value === "ALL" ? undefined : value })}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue placeholder="Filter by Program" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="ALL">All Programs</SelectItem>
-									{programData?.programs?.map((program) => ({
-										id: program.id,
-										name: program.name || '',
-										level: program.classGroups?.[0]?.name || 'Unknown'
-									})).map((program) => (
-										<SelectItem key={program.id} value={program.id}>
-											{program.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<Select
-								value={filters.campusId || "ALL"}
-								onValueChange={(value) => setFilters({ ...filters, campusId: value === "ALL" ? undefined : value })}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue placeholder="Filter by Campus" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="ALL">All Campuses</SelectItem>
-									{campuses?.map((campus) => (
-										<SelectItem key={campus.id} value={campus.id}>
-											{campus.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<Select
-								value={filters.type || "ALL"}
-								onValueChange={(value) => setFilters({ 
-									...filters, 
-									type: value === "ALL" ? undefined : value as 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR' 
-								})}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue placeholder="Filter by Type" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="ALL">All Types</SelectItem>
-									<SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
-									<SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
-								</SelectContent>
-							</Select>
-							<Select
-								value={filters.status || "ALL"}
-								onValueChange={(value) => setFilters({ ...filters, status: value === "ALL" ? undefined : value as Status })}
-							>
-								<SelectTrigger className="w-[180px]">
-									<SelectValue placeholder="Status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="ALL">All Status</SelectItem>
-									{Object.values(Status).map((status) => (
-										<SelectItem key={status} value={status}>
-											{status}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Program Coordinator Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-6 space-y-4">
+            <div className="flex space-x-4">
+              <Input
+                placeholder="Search coordinators..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                className="max-w-sm"
+              />
+              <Select
+                value={filters.programId || "ALL"}
+                onValueChange={(value) => setFilters({ ...filters, programId: value === "ALL" ? undefined : value })}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by Program" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Programs</SelectItem>
+                  {programData?.programs?.map((program: Program) => (
+                    <SelectItem key={program.id} value={program.id}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.campusId || "ALL"}
+                onValueChange={(value) => setFilters({ ...filters, campusId: value === "ALL" ? undefined : value })}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by Campus" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Campuses</SelectItem>
+                  {campuses?.map((campus) => (
+                    <SelectItem key={campus.id} value={campus.id}>
+                      {campus.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.type || "ALL"}
+                onValueChange={(value) => setFilters({ 
+                  ...filters, 
+                  type: value === "ALL" ? undefined : value as 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR' 
+                })}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Types</SelectItem>
+                  <SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
+                  <SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.status || "ALL"}
+                onValueChange={(value) => setFilters({ ...filters, status: value === "ALL" ? undefined : value as Status })}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Status</SelectItem>
+                  {Object.values(Status).map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-					<div className="space-y-4">
-						{showDetails && selectedCoordinatorId ? (
-							<CoordinatorDetails 
-								coordinatorId={selectedCoordinatorId}
-								onBack={() => {
-									setShowDetails(false);
-									setSelectedCoordinatorId(null);
-								}}
-							/>
-						) : (
-							<>
-								<CoordinatorList 
-									coordinators={coordinators || []} 
-									onSelect={(id) => {
-										setSelectedCoordinatorId(id);
-										setShowDetails(true);
-									}}
-								/>
-								{selectedCoordinatorId && !showDetails ? (
-									<CoordinatorForm
-										selectedCoordinator={coordinators?.find(c => c.id === selectedCoordinatorId)}
-										programs={programData?.programs?.map((program) => ({
-											id: program.id,
-											name: program.name || '',
-											level: program.classGroups?.[0]?.name || 'Unknown',
-											campuses: program.campuses
-										})) || []}
-										campuses={campuses || []}
-										onSuccess={() => setSelectedCoordinatorId(null)}
-									/>
-								) : null}
-							</>
-						)}
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
+          <div className="space-y-4">
+            {showDetails && selectedCoordinatorId ? (
+              <CoordinatorDetails 
+                coordinatorId={selectedCoordinatorId}
+                onBack={() => {
+                  setShowDetails(false);
+                  setSelectedCoordinatorId(null);
+                }}
+              />
+            ) : (
+              <>
+                <CoordinatorList 
+                  coordinators={coordinators || []} 
+                  onSelect={(id) => {
+                    setSelectedCoordinatorId(id);
+                    setShowDetails(true);
+                  }}
+                />
+                {selectedCoordinatorId && !showDetails ? (
+                  <CoordinatorForm
+                    selectedCoordinator={coordinators?.find(c => c.id === selectedCoordinatorId)}
+                    programs={programData?.programs?.map((program: Program) => ({
+                      id: program.id,
+                      name: program.name || '',
+                      level: program.classGroups?.[0]?.name || 'Unknown',
+                      campuses: program.campuses
+                    })) || []}
+                    campuses={campuses || []}
+                    onSuccess={() => setSelectedCoordinatorId(null)}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 };
