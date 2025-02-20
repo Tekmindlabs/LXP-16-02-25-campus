@@ -527,6 +527,9 @@ model StudentProfile {
   classActivitySubmissions   ClassActivitySubmission[]
   unifiedActivitySubmissions UnifiedActivitySubmission[]
 
+  // Add coordinator relation
+  coordinators CoordinatorProfile[] @relation("CoordinatorStudents")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -591,8 +594,42 @@ model CoordinatorProfile {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  
+  // Add reporting relationships
+  reportsTo         CoordinatorProfile?  @relation("CoordinatorHierarchy", fields: [reportsToId], references: [id])
+  reportsToId       String?
+  subordinates      CoordinatorProfile[] @relation("CoordinatorHierarchy")
+  
+  // Add direct access to students through programs
+  students          StudentProfile[]     @relation("CoordinatorStudents")
+  
+  // Add workload tracking
+  maxWorkload       Int                  @default(5) // Maximum number of programs
+  currentWorkload   Int                  @default(0) // Current number of assigned programs
+
+
   @@map("coordinator_profiles")
 }
+
+// Add coordinator history tracking
+model CoordinatorAssignmentHistory {
+  id            String   @id @default(cuid())
+  coordinatorId String
+  programId     String
+  assignedAt    DateTime @default(now())
+  endedAt       DateTime?
+  reason        String?
+}
+
+// Add coordinator workload settings
+model CoordinatorWorkloadSettings {
+  id                String @id @default(cuid())
+  coordinatorId     String @unique
+  maxPrograms       Int    @default(5)
+  maxStudents       Int?
+  workloadUnits     Float  @default(1.0)
+}
+
 
 enum CoordinatorType {
   PROGRAM_COORDINATOR

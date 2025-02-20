@@ -72,6 +72,15 @@ export enum DefaultRoles {
   COORDINATOR = "coordinator"
 }
 
+export const COORDINATOR_PERMISSIONS = {
+  VIEW_COORDINATORS: "VIEW_COORDINATORS",
+  MANAGE_COORDINATORS: "MANAGE_COORDINATORS",
+  VIEW_COORDINATOR_STUDENTS: "VIEW_COORDINATOR_STUDENTS",
+  MANAGE_COORDINATOR_HIERARCHY: "MANAGE_COORDINATOR_HIERARCHY",
+  ASSIGN_PROGRAMS: "ASSIGN_PROGRAMS",
+  TRANSFER_COORDINATOR: "TRANSFER_COORDINATOR",
+} as const;
+
 export const hasRole = (userRoles: string[], role: DefaultRoles) => {
   return userRoles.includes(role);
 };
@@ -147,3 +156,19 @@ export const RolePermissions: Record<DefaultRoles, Permission[]> = {
     Permissions.GRADEBOOK_VIEW,
   ],
 };
+
+export function hasPermission(session: Session | null, permission: keyof typeof COORDINATOR_PERMISSIONS): boolean {
+  if (!session?.user?.role) return false;
+
+  // Add your permission checking logic here based on your role system
+  const permissionMap = {
+    SUPER_ADMIN: Object.values(COORDINATOR_PERMISSIONS),
+    ADMIN: [
+      COORDINATOR_PERMISSIONS.VIEW_COORDINATOR_STUDENTS,
+      COORDINATOR_PERMISSIONS.ASSIGN_PROGRAMS,
+    ],
+    // Add other roles as needed
+  };
+
+  return permissionMap[session.user.role]?.includes(permission) ?? false;
+}
