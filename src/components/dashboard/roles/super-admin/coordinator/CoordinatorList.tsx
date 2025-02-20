@@ -10,8 +10,17 @@ interface Coordinator {
 	name: string;
 	email: string;
 	status: Status;
+	type: 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR';
 	coordinatorProfile: {
 		programs: {
+			id: string;
+			name: string;
+		}[];
+		campus?: {
+			id: string;
+			name: string;
+		};
+		inheritedPrograms?: {
 			id: string;
 			name: string;
 		}[];
@@ -32,7 +41,10 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 					<TableRow>
 						<TableHead>Name</TableHead>
 						<TableHead>Email</TableHead>
+						<TableHead>Type</TableHead>
+						<TableHead>Campus</TableHead>
 						<TableHead>Programs</TableHead>
+						<TableHead>Inherited Programs</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead>Actions</TableHead>
 					</TableRow>
@@ -42,10 +54,23 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 						<TableRow key={coordinator.id}>
 							<TableCell>{coordinator.name}</TableCell>
 							<TableCell>{coordinator.email}</TableCell>
+							<TableCell>{coordinator.type}</TableCell>
+							<TableCell>
+								{coordinator.coordinatorProfile.campus?.name || '-'}
+							</TableCell>
 							<TableCell>
 								<div className="flex flex-wrap gap-2">
 									{coordinator.coordinatorProfile?.programs.map((program) => (
 										<Badge key={program.id} variant="secondary">
+											{program.name}
+										</Badge>
+									))}
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className="flex flex-wrap gap-2">
+									{coordinator.coordinatorProfile.inheritedPrograms?.map((program) => (
+										<Badge key={program.id} variant="outline">
 											{program.name}
 										</Badge>
 									))}
