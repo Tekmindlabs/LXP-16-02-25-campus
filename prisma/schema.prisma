@@ -1,6 +1,6 @@
 generator client {
   provider  = "prisma-client-js"
-  directUrl = env("DIRECT_URL")
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
@@ -57,6 +57,18 @@ model User {
   @@map("users")
 }
 
+model CoordinatorResponsibility {
+  id              String    @id @default(cuid())
+  coordinator     CoordinatorProfile @relation(fields: [coordinatorId], references: [id])
+  coordinatorId   String
+  responsibility  String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([coordinatorId, responsibility])
+  @@map("coordinator_responsibilities")
+}
+
 model Campus {
   id                String     @id @default(cuid())
   name              String
@@ -87,7 +99,7 @@ model Campus {
   classes   Class[]
   rolePermissions RolePermission[] // Add relation to RolePermission
   programs  Program[]             @relation("ProgramCampuses")
-
+  coordinators     CoordinatorProfile[]
   // Audit fields
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -570,11 +582,20 @@ model CoordinatorProfile {
   id        String    @id @default(cuid())
   user      User      @relation(fields: [userId], references: [id])
   userId    String    @unique
+  type      CoordinatorType @default(PROGRAM_COORDINATOR)
   programs  Program[]
+  campus    Campus?   @relation(fields: [campusId], references: [id])
+  campusId  String?
+  responsibilities String[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   @@map("coordinator_profiles")
+}
+
+enum CoordinatorType {
+  PROGRAM_COORDINATOR
+  CAMPUS_PROGRAM_COORDINATOR
 }
 
 model ParentProfile {
