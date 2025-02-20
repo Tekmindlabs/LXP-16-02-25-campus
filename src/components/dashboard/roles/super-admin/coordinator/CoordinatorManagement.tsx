@@ -29,6 +29,7 @@ interface Coordinator {
 		id: string;
 		name: string;
 	  };
+	  responsibilities: string[];
 	  inheritedPrograms?: {
 		id: string;
 		name: string;

@@ -20,6 +20,7 @@ interface Coordinator {
 			id: string;
 			name: string;
 		};
+		responsibilities: string[];
 		inheritedPrograms?: {
 			id: string;
 			name: string;
@@ -45,6 +46,7 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 						<TableHead>Campus</TableHead>
 						<TableHead>Programs</TableHead>
 						<TableHead>Inherited Programs</TableHead>
+						<TableHead>Responsibilities</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead>Actions</TableHead>
 					</TableRow>
@@ -72,6 +74,15 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 									{coordinator.coordinatorProfile.inheritedPrograms?.map((program) => (
 										<Badge key={program.id} variant="outline">
 											{program.name}
+										</Badge>
+									))}
+								</div>
+							</TableCell>
+							<TableCell>
+								<div className="flex flex-wrap gap-2">
+									{coordinator.coordinatorProfile.responsibilities?.map((responsibility) => (
+										<Badge key={responsibility} variant="outline">
+											{responsibility}
 										</Badge>
 									))}
 								</div>
