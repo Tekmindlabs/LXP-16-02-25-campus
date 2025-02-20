@@ -587,6 +587,7 @@ model CoordinatorProfile {
   campus    Campus?   @relation(fields: [campusId], references: [id])
   campusId  String?
   responsibilities String[]
+  responsibilityRecords CoordinatorResponsibility[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

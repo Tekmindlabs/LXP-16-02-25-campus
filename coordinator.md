@@ -191,3 +191,156 @@ export const coordinatorRouter = createTRPCRouter({
 ```
 
 These updates will ensure that the coordinator management system properly handles the new coordinator types, responsibilities, and campus-program relationships. Make sure to also update your database schema to reflect these changes if you haven't already done so.
+
+
+Based on the provided codebase and migrations, I'll help outline the necessary schema updates to implement the coordinator changes and make them work with the existing system. Here's what needs to be updated in the Prisma schema:
+
+1. First, update the CoordinatorProfile model:
+
+```prisma
+model CoordinatorProfile {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String    @unique
+  type      CoordinatorType @default(PROGRAM_COORDINATOR)
+  programs  Program[]
+  campus    Campus?   @relation(fields: [campusId], references: [id])
+  campusId  String?
+  responsibilities String[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("coordinator_profiles")
+}
+
+enum CoordinatorType {
+  PROGRAM_COORDINATOR
+  CAMPUS_PROGRAM_COORDINATOR
+}
+```
+
+2. Update the Program model to support campus relationships:
+
+```prisma
+model Program {
+  id               String                 @id @default(cuid())
+  name             String?                @unique
+  description      String?
+  status           Status                 @default(ACTIVE)
+  termSystem       TermSystemType         @default(SEMESTER)
+  coordinator      CoordinatorProfile?    @relation(fields: [coordinatorId], references: [id])
+  coordinatorId    String?
+  calendar         Calendar               @relation(fields: [calendarId], references: [id])
+  calendarId       String
+  classGroups      ClassGroup[]
+  termStructures   ProgramTermStructure[]
+  assessmentSystem AssessmentSystem?
+  campuses         Campus[]               @relation("ProgramCampuses")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@map("programs")
+}
+```
+
+3. Add necessary indexes and relations:
+
+```prisma
+model Campus {
+  // ... existing fields ...
+  programs         Program[]    @relation("ProgramCampuses")
+  coordinators     CoordinatorProfile[]
+  
+  @@index([id])
+}
+```
+
+4. Update the User model to include coordinator type:
+
+```prisma
+model User {
+  // ... existing fields ...
+  coordinatorProfile   CoordinatorProfile?
+  userType            UserType?
+  
+  @@index([id])
+}
+
+enum UserType {
+  STUDENT
+  TEACHER
+  COORDINATOR
+  PARENT
+  ADMIN
+}
+```
+
+5. Add a new model for tracking coordinator responsibilities:
+
+```prisma
+model CoordinatorResponsibility {
+  id              String    @id @default(cuid())
+  coordinator     CoordinatorProfile @relation(fields: [coordinatorId], references: [id])
+  coordinatorId   String
+  responsibility  String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([coordinatorId, responsibility])
+  @@map("coordinator_responsibilities")
+}
+```
+
+6. Add necessary migrations:
+
+Create a new migration file that includes these changes:
+
+```sql
+-- CreateEnum
+CREATE TYPE "CoordinatorType" AS ENUM ('PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR');
+
+-- AlterTable
+ALTER TABLE "coordinator_profiles"
+ADD COLUMN "type" "CoordinatorType" NOT NULL DEFAULT 'PROGRAM_COORDINATOR',
+ADD COLUMN "campusId" TEXT,
+ADD COLUMN "responsibilities" TEXT[];
+
+-- AddForeignKey
+ALTER TABLE "coordinator_profiles"
+ADD CONSTRAINT "coordinator_profiles_campusId_fkey"
+FOREIGN KEY ("campusId") REFERENCES "campuses"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- CreateIndex
+CREATE INDEX "coordinator_profiles_campusId_idx" ON "coordinator_profiles"("campusId");
+```
+
+7. Update the schema version in schema.prisma:
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+These changes will:
+- Support both program and campus-specific coordinators
+- Allow coordinators to be associated with specific campuses
+- Track coordinator responsibilities
+- Maintain relationships between programs, campuses, and coordinators
+- Enable proper filtering and querying of coordinator data
+- Support the new coordinator management features
+
+After making these changes:
+1. Run `prisma generate` to update the Prisma Client
+2. Create and apply the new migration
+3. Update any existing coordinator-related API routes to use the new schema
+4. Update the frontend components to handle the new data structure
+
+This schema update provides a solid foundation for the enhanced coordinator management system while maintaining compatibility with existing features and ensuring proper data relationships and constraints.
