@@ -19,16 +19,19 @@ const formSchema = z.object({
   type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR']),
   programIds: z.array(z.string()).min(1, "At least one program must be selected"),
   campusId: z.string().optional()
-    .superRefine((val, ctx: z.RefinementCtx & { parent: { type: string } }) => {
-      if (ctx.parent.type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Campus selection is required for Campus Program Coordinator"
-        });
-        return false;
+    .refine(
+      (val, ctx) => {
+        const type = ctx.parent.type;
+        if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Campus selection is required for Campus Program Coordinator"
+          });
+          return false;
+        }
+        return true;
       }
-      return true;
-    }),
+    ),
   responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"),
   status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
 });
