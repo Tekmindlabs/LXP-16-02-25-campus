@@ -13,6 +13,7 @@ import { teacherRouter } from "./routers/teacher";
 import { workspaceRouter } from "./routers/workspace";
 import { campusRolePermissionRouter } from "./routers/campus-role-permission";
 import { roleRouter } from "./routers/role";
+import { coordinatorRouter } from "./routers/coordinator";
 
 export const appRouter = createTRPCRouter({
   academicCalendar: academicCalendarRouter,
@@ -29,6 +30,7 @@ export const appRouter = createTRPCRouter({
   student: studentRouter,
   teacher: teacherRouter,
   workspace: workspaceRouter,
+  coordinator: coordinatorRouter,
 });
 
 export type AppRouter = typeof appRouter;
