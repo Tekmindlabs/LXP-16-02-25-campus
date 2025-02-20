@@ -55,9 +55,11 @@ interface Program {
 }
 
 export const CoordinatorManagement = () => {
-  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [filters, setFilters] = useState<SearchFilters>({
+const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string | null>(null);
+const [showDetails, setShowDetails] = useState(false);
+const [isDialogOpen, setIsDialogOpen] = useState(false);
+const [isEditing, setIsEditing] = useState(false);
+const [filters, setFilters] = useState<SearchFilters>({
     search: "",
   });
 
@@ -73,17 +75,32 @@ export const CoordinatorManagement = () => {
   );
   const { data: campuses } = api.campus.getAll.useQuery();
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+const handleEdit = (id: string) => {
+	setSelectedCoordinatorId(id);
+	setIsEditing(true);
+	setIsDialogOpen(true);
+};
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Program Coordinator Management</CardTitle>
-        </CardHeader>
-        <CardContent>
+if (isLoading) {
+	return <div>Loading...</div>;
+}
+
+return (
+	<div className="space-y-4">
+		<Card>
+			<CardHeader className="flex flex-row items-center justify-between">
+				<CardTitle>Program Coordinator Management</CardTitle>
+				<Button 
+					onClick={() => {
+						setSelectedCoordinatorId(null);
+						setIsEditing(false);
+						setIsDialogOpen(true);
+					}}
+				>
+					Add Program Coordinator
+				</Button>
+			</CardHeader>
+			<CardContent>
           <div className="mb-6 space-y-4">
             <div className="flex space-x-4">
               <Input
@@ -170,26 +187,41 @@ export const CoordinatorManagement = () => {
               />
             ) : (
               <>
-                <CoordinatorList 
-                  coordinators={coordinators || []} 
-                  onSelect={(id) => {
-                    setSelectedCoordinatorId(id);
-                    setShowDetails(true);
-                  }}
-                />
-                {selectedCoordinatorId && !showDetails ? (
-                  <CoordinatorForm
-                    selectedCoordinator={coordinators?.find(c => c.id === selectedCoordinatorId)}
-                    programs={programData?.programs?.map((program: Program) => ({
-                      id: program.id,
-                      name: program.name || '',
-                      level: program.classGroups?.[0]?.name || 'Unknown',
-                      campuses: program.campuses
-                    })) || []}
-                    campuses={campuses || []}
-                    onSuccess={() => setSelectedCoordinatorId(null)}
-                  />
-                ) : null}
+<CoordinatorList 
+  coordinators={coordinators || []} 
+  onSelect={(id) => {
+	setSelectedCoordinatorId(id);
+	setShowDetails(true);
+  }}
+  onEdit={handleEdit}
+/>
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent className="max-w-2xl">
+	<DialogHeader>
+	  <DialogTitle>
+		{isEditing ? 'Edit Program Coordinator' : 'Add Program Coordinator'}
+	  </DialogTitle>
+	</DialogHeader>
+	<CoordinatorForm
+	  selectedCoordinator={isEditing ? coordinators?.find(c => c.id === selectedCoordinatorId) : undefined}
+	  programs={programData?.programs?.map((program: Program) => ({
+		id: program.id,
+		name: program.name || '',
+		level: program.classGroups?.[0]?.name || 'Unknown',
+		campuses: program.campuses?.map(campus => ({
+		  id: campus.id,
+		  name: campuses?.find(c => c.id === campus.id)?.name || 'Unknown'
+		}))
+	  })) || []}
+	  campuses={campuses || []}
+	  onSuccess={() => {
+		setSelectedCoordinatorId(null);
+		setIsEditing(false);
+		setIsDialogOpen(false);
+	  }}
+	/>
+  </DialogContent>
+</Dialog>
               </>
             )}
           </div>

@@ -32,9 +32,10 @@ interface Coordinator {
 interface CoordinatorListProps {
 	coordinators: Coordinator[];
 	onSelect: (id: string) => void;
+  onEdit: (id: string) => void;  // Add this prop
 }
 
-export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps) => {
+export const CoordinatorList = ({ coordinators, onSelect, onEdit }: CoordinatorListProps) => {
 	return (
 		<div className="rounded-md border">
 			<Table>
@@ -93,18 +94,27 @@ export const CoordinatorList = ({ coordinators, onSelect }: CoordinatorListProps
 								</Badge>
 							</TableCell>
 							<TableCell>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => onSelect(coordinator.id)}
-								>
-									View Details
-								</Button>
-							</TableCell>
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-		</div>
-	);
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onSelect(coordinator.id)}
+                  >
+                    View Details
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onEdit(coordinator.id)}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
 };
