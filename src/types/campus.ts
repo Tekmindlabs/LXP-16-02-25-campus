@@ -2,6 +2,8 @@ import { Status, Campus as PrismaCampus, Program, ClassGroup } from "@prisma/cli
 import { TeacherProfile } from "./teacher";
 import { StudentProfile } from "./student";
 import { Class } from "./class";
+import { User } from "./user";
+import { RoleTemplate as Role } from './roles';
 
 export interface CampusContextType {
   currentCampus: PrismaCampus | null;
@@ -10,6 +12,20 @@ export interface CampusContextType {
   classGroups: ClassGroup[];
   refreshData: () => void;
 }
+
+export interface RolePermission {
+	id: string;
+	roleId: string;
+	permissionId: string;
+	role?: Role;
+	permission?: {
+	  id: string;
+	  name: string;
+	  description?: string;
+	};
+	createdAt: Date;
+	updatedAt: Date;
+  }
 
 export enum CampusPermission {
   MANAGE_CAMPUS = "campus:manage",
@@ -40,6 +56,16 @@ export enum RoomStatus {
   MAINTENANCE = 'MAINTENANCE',
   INACTIVE = 'INACTIVE'
 }
+
+export interface CampusFeature {
+	id: string;
+	name: string;
+	description?: string; 
+	campusId: string;
+	campus?: Campus;
+	createdAt: Date;
+	updatedAt: Date;
+  }
 
 export interface Campus {
   id: string;
@@ -72,6 +98,9 @@ export interface Campus {
   rolePermissions?: RolePermission[];
   programs?: Program[];
   coordinators?: CoordinatorProfile[];
+  students?: StudentProfile[];
+  teachers?: TeacherProfile[];
+  classGroups?: ClassGroup[];
 
   // Audit fields
   createdAt: Date;
@@ -150,6 +179,19 @@ export interface CampusRole {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface CoordinatorProfile {
+	id: string;
+	userId: string;
+	campusId: string;
+	user: User;
+	campus: Campus;
+	status?: Status;
+	designation?: string;
+	department?: string;
+	createdAt: Date;
+	updatedAt: Date;
+  }
 
 export interface CampusSync {
   id: string;

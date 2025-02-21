@@ -1,4 +1,5 @@
 import { User } from "./user";
+import { RoleTemplate as Role } from './roles';
 
 export enum TeacherType {
 	CLASS = 'CLASS',
