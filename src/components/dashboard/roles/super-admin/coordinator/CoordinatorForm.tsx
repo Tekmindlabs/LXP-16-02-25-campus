@@ -1,10 +1,10 @@
 'use client';
 
+import { Status } from "@prisma/client";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Status } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -20,20 +20,19 @@ const formSchema = z.object({
   programIds: z.array(z.string()).min(1, "At least one program must be selected"),
   campusId: z.string()
     .optional()
-    .refine(
-      (val: string | undefined, ctx: z.RefinementCtx) => {
-        const type = (ctx.path[0] as any)?.parent?.type;
-        if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Campus selection is required for Campus Program Coordinator"
-          });
-          return false;
-        }
-        return true;
+    .superRefine((val, ctx) => { // Change from .refine to .superRefine
+      const type = ctx.path[0]?.parent?.type;
+      if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Campus selection is required for Campus Program Coordinator"
+        });
+        return false;
       }
-    ),
+      return true;
+    }),
   responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"),
+
   status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
 });
 
@@ -63,17 +62,11 @@ interface CoordinatorFormProps {
 
 export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuccess }: CoordinatorFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const defaultResponsibilities = [
-    { value: "managing_terms", label: "Managing Terms" },
-    { value: "coordinating_teachers", label: "Coordinating Teachers" },
-    { value: "program_planning", label: "Program Planning" },
-    { value: "assessment_management", label: "Assessment Management" },
-    { value: "student_support", label: "Student Support" }
-  ];
-
+  const [filteredPrograms, setFilteredPrograms] = useState(programs);
+  
   const utils = api.useContext();
 
+  // Move form declaration before its usage
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -87,22 +80,27 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
     },
   });
 
-  // Filter programs based on selected campus
-  const getAvailablePrograms = () => {
-    if (form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' && form.watch('campusId')) {
-      return programs.filter(program => 
-        program.campuses?.some(campus => campus.id === form.watch('campusId'))
-      );
-    }
-    return programs;
-  };
-
-  // Clear programs when campus changes
+  // Now use form in useEffect
   useEffect(() => {
-    if (form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR') {
-      form.setValue('programIds', []);
+    if (form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' && form.watch('campusId')) {
+      const campusId = form.watch('campusId');
+      const filtered = programs.filter(program =>
+        program.campuses?.some(campus => campus.id === campusId)
+      );
+      setFilteredPrograms(filtered);
+    } else {
+      setFilteredPrograms(programs);
     }
-  }, [form.watch('campusId')]);
+  }, [form.watch('campusId'), form.watch('type'), programs]);
+
+  const defaultResponsibilities = [
+    { value: "managing_terms", label: "Managing Terms" },
+    { value: "coordinating_teachers", label: "Coordinating Teachers" },
+    { value: "program_planning", label: "Program Planning" },
+    { value: "assessment_management", label: "Assessment Management" },
+    { value: "student_support", label: "Student Support" }
+  ];
+
 
   // Clear campus and programs when type changes
   useEffect(() => {
@@ -111,6 +109,7 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
       form.setValue('programIds', []);
     }
   }, [form.watch('type')]);
+
 
   const createCoordinator = api.coordinator.createCoordinator.useMutation({
     onSuccess: () => {
@@ -277,23 +276,23 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
           control={form.control}
           name="programIds"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' ? 'Campus Programs' : 'Programs'}
-              </FormLabel>
-              <FormControl>
-                <MultiSelect
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={getAvailablePrograms().map(program => ({
-                    label: `${program.name} (${program.level})`,
-                    value: program.id
-                  }))}
-                  placeholder={`Select ${form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' ? 'campus programs' : 'programs'}`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+          <FormItem>
+            <FormLabel>
+            {form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' ? 'Campus Programs' : 'Programs'}
+            </FormLabel>
+            <FormControl>
+            <MultiSelect
+                value={field.value}
+                onChange={field.onChange}
+                options={filteredPrograms.map(program => ({
+                label: `${program.name} (${program.level})`,
+                value: program.id
+                }))}
+                placeholder={`Select ${form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' ? 'campus programs' : 'programs'}`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
           )}
         />
 
