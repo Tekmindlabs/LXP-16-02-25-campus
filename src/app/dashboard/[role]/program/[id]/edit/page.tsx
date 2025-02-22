@@ -39,14 +39,12 @@ export default function EditProgramPage() {
 	coordinatorId: program.coordinator?.id,
 	status: program.status,
 	campuses: program.campuses.map(campus => ({ id: campus.id })),
-	termStructures: program.academicTerms?.map(academicTerm => ({
-	  // Access the properties correctly based on the API response structure
-	  type: academicTerm.term.type as TermSystemType,
-	  name: academicTerm.term.name,
-	  startDate: new Date(academicTerm.term.startDate),
-	  endDate: new Date(academicTerm.term.endDate),
-	  // Access assessment periods from the correct path
-	  assessmentPeriods: academicTerm.assessmentPeriods?.map((period) => ({
+	termStructures: program.terms?.map((term: Term) => ({
+	  type: term.type as TermSystemType,
+	  name: term.name,
+	  startDate: new Date(term.startDate),
+	  endDate: new Date(term.endDate),
+	  assessmentPeriods: term.assessmentPeriods?.map((period: AssessmentPeriod) => ({
 		name: period.name,
 		startDate: new Date(period.startDate),
 		endDate: new Date(period.endDate),
