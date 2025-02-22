@@ -68,12 +68,29 @@ export const defaultFormData: ProgramFormData = {
 	status: Status.ACTIVE,
 	termSystem: {
 		type: 'SEMESTER' as TermSystemType,
-		terms: []
+		terms: termConfigs.SEMESTER.terms.map(term => ({
+			name: term.name,
+			startDate: new Date(),
+			endDate: new Date(),
+			type: 'SEMESTER' as TermSystemType,
+			assessmentPeriods: []
+		}))
 	},
 	assessmentSystem: {
-		type: 'STANDARD' as AssessmentSystemType,
-		markingScheme: 'PERCENTAGE',
-		rubric: null,
-		cgpaConfig: null
+		type: "MARKING_SCHEME",
+		markingScheme: {
+			maxMarks: 100,
+			passingMarks: 40,
+			gradingScale: [
+				{ grade: 'A', minPercentage: 80, maxPercentage: 100 },
+				{ grade: 'B', minPercentage: 70, maxPercentage: 79 },
+				{ grade: 'C', minPercentage: 60, maxPercentage: 69 },
+				{ grade: 'D', minPercentage: 50, maxPercentage: 59 },
+				{ grade: 'E', minPercentage: 40, maxPercentage: 49 },
+				{ grade: 'F', minPercentage: 0, maxPercentage: 39 }
+			]
+		},
+		rubric: undefined,
+		cgpaConfig: undefined
 	}
 };

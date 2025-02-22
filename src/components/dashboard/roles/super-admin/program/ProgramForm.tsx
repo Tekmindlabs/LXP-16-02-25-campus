@@ -210,13 +210,11 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
         name: program.name,
         description: program.description,
         calendarId: program.calendarId || "",
-        // Fix: Use program.campuses instead of program.campusIds
         campusId: program.campuses?.map((campus: any) => campus.id) || [],
         coordinatorId: program.coordinatorId || "",
         status: program.status,
         termSystem: {
-            // Fix: Use program.termSystem directly
-            type: program.termSystem || "SEMESTER",
+            type: program.termStructures?.[0]?.type || "SEMESTER",
             terms: program.termStructures?.map((term: any) => ({
                 name: term.name,
                 startDate: new Date(term.startDate),
@@ -232,9 +230,26 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
         },
         assessmentSystem: {
             type: program.assessmentSystem?.type || "STANDARD",
-            markingScheme: program.assessmentSystem?.markingScheme || "PERCENTAGE",
-            rubric: program.assessmentSystem?.rubric || null,
-            cgpaConfig: program.assessmentSystem?.cgpaConfig || null
+            markingScheme: program.assessmentSystem?.type === "MARKING_SCHEME" 
+                ? {
+                    maxMarks: program.assessmentSystem.markingSchemes?.[0]?.maxMarks || 100,
+                    passingMarks: program.assessmentSystem.markingSchemes?.[0]?.passingMarks || 40,
+                    gradingScale: program.assessmentSystem.markingSchemes?.[0]?.gradingScale || [
+                        { grade: 'A', minPercentage: 80, maxPercentage: 100 },
+                        { grade: 'B', minPercentage: 70, maxPercentage: 79 },
+                        { grade: 'C', minPercentage: 60, maxPercentage: 69 },
+                        { grade: 'D', minPercentage: 50, maxPercentage: 59 },
+                        { grade: 'E', minPercentage: 40, maxPercentage: 49 },
+                        { grade: 'F', minPercentage: 0, maxPercentage: 39 }
+                    ]
+                }
+                : undefined,
+            rubric: program.assessmentSystem?.type === "RUBRIC"
+                ? program.assessmentSystem.rubrics?.[0] || null
+                : undefined,
+            cgpaConfig: program.assessmentSystem?.type === "CGPA"
+                ? program.assessmentSystem.cgpaConfig || null
+                : undefined
         }
     };
 };

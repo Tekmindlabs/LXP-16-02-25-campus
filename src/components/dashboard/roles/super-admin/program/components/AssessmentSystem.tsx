@@ -13,28 +13,32 @@ interface AssessmentSystemProps {
 
 export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSystemProps) => {
 	const handleAssessmentTypeChange = (type: AssessmentSystemType) => {
+		const newAssessmentSystem = {
+			type,
+			markingScheme: type === AssessmentSystemType.MARKING_SCHEME 
+				? {
+					maxMarks: 100,
+					passingMarks: 40,
+					gradingScale: [
+						{ grade: 'A', minPercentage: 80, maxPercentage: 100 },
+						{ grade: 'B', minPercentage: 70, maxPercentage: 79 },
+						{ grade: 'C', minPercentage: 60, maxPercentage: 69 },
+						{ grade: 'D', minPercentage: 50, maxPercentage: 59 },
+						{ grade: 'E', minPercentage: 40, maxPercentage: 49 },
+						{ grade: 'F', minPercentage: 0, maxPercentage: 39 }
+					]
+				}
+				: undefined,
+			rubric: type === AssessmentSystemType.RUBRIC 
+				? defaultRubric 
+				: undefined,
+			cgpaConfig: type === AssessmentSystemType.CGPA 
+				? defaultCGPAConfig 
+				: undefined
+		};
+
 		onFormDataChange({
-			assessmentSystem: {
-				type,
-				...(type === AssessmentSystemType.MARKING_SCHEME ? {
-					markingScheme: {
-						maxMarks: 100,
-						passingMarks: 40,
-						gradingScale: [
-							{ grade: 'A', minPercentage: 80, maxPercentage: 100 },
-							{ grade: 'B', minPercentage: 70, maxPercentage: 79 },
-							{ grade: 'C', minPercentage: 60, maxPercentage: 69 },
-							{ grade: 'D', minPercentage: 50, maxPercentage: 59 },
-							{ grade: 'E', minPercentage: 40, maxPercentage: 49 },
-							{ grade: 'F', minPercentage: 0, maxPercentage: 39 }
-						]
-					}
-				} : type === AssessmentSystemType.RUBRIC ? {
-					rubric: defaultRubric
-				} : type === AssessmentSystemType.CGPA ? {
-					cgpaConfig: defaultCGPAConfig
-				} : {})
-			}
+			assessmentSystem: newAssessmentSystem
 		});
 	};
 
