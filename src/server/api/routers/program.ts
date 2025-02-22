@@ -371,7 +371,7 @@ export const programRouter = createTRPCRouter({
         name: z.string().optional(),
         description: z.string().optional(),
         calendarId: z.string().optional(),
-        coordinatorId: z.string().optional(),
+        coordinatorId: z.string().nullable().optional(),
         status: z.nativeEnum(Status).optional(),
         termSystem: termSystemInput.optional(),
         assessmentSystem: z.object({
