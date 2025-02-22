@@ -5,8 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgramForm } from "@/components/dashboard/roles/super-admin/program/ProgramForm";
 import { api } from "@/utils/api";
 import { useRouter } from "next/navigation";
-import { useParams as useNextParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Program, ProgramFormProps } from "@/types/program";
+
+export default function EditProgramPage() {
 
 export default function EditProgramPage() {
 	const router = useRouter();
@@ -26,6 +29,7 @@ export default function EditProgramPage() {
 
 	if (!program) {
 		return <div>Program not found</div>;
+
 	}
 
 	return (
@@ -52,3 +56,5 @@ export default function EditProgramPage() {
 		</div>
 	);
 }
+
+
