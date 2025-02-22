@@ -6,7 +6,15 @@ import { Plus, Trash2 } from "lucide-react";
 import { TermSystemType } from "@/types/program";
 
 interface TermSystemSectionProps {
-	termSystem: any;
+	termSystem: {
+		type: TermSystemType;
+		terms: Array<{
+			name: string;
+			startDate: Date;
+			endDate: Date;
+		}>;
+	};
+	selectedProgram?: any;
 	onTermSystemTypeChange: (type: TermSystemType) => void;
 	onAddTerm: (type: TermSystemType) => void;
 	onRemoveTerm: (index: number) => void;
@@ -15,6 +23,7 @@ interface TermSystemSectionProps {
 
 export const TermSystemSection = ({
 	termSystem,
+	selectedProgram,
 	onTermSystemTypeChange,
 	onAddTerm,
 	onRemoveTerm,
@@ -27,21 +36,24 @@ export const TermSystemSection = ({
 				<Label>System Type</Label>
 				<Select
 					value={termSystem.type}
-					onValueChange={onTermSystemTypeChange}
+					onValueChange={(value) => onTermSystemTypeChange(value as TermSystemType)}
+					disabled={!!selectedProgram && termSystem.terms.length > 0}
 				>
 					<SelectTrigger>
 						<SelectValue placeholder="Select term system" />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="SEMESTER">Semester Based</SelectItem>
-						<SelectItem value="TERM">Term Based</SelectItem>
-						<SelectItem value="QUARTER">Quarter Based</SelectItem>
+						{(Object.values(TermSystemType) as TermSystemType[]).map((type) => (
+							<SelectItem key={type} value={type}>
+								{type.replace('_', ' ')}
+							</SelectItem>
+						))}
 					</SelectContent>
 				</Select>
 			</div>
 
 			<div className="space-y-2">
-				{termSystem.terms.map((term: any, index: number) => (
+				{termSystem.terms.map((term, index) => (
 					<div key={index} className="space-y-2 border p-2 rounded">
 						<div className="flex justify-between items-center">
 							<h4 className="font-medium">{term.name}</h4>
