@@ -23,28 +23,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { AssessmentSystemType } from "@/types/assessment";
+import { TermSystemSection } from "./components/TermSystemSection";
 
-
-enum TermSystemType {
-    SEMESTER = "SEMESTER",
-    TERM = "TERM",
-    QUARTER = "QUARTER"
-  }
-
-enum AssessmentSystemType {
-  MARKING_SCHEME = "MARKING_SCHEME",
-  RUBRIC = "RUBRIC",
-  HYBRID = "HYBRID",
-  CGPA = "CGPA"
+enum CoordinatorType {
+  PROGRAM_COORDINATOR = 'PROGRAM_COORDINATOR',
+  CAMPUS_COORDINATOR = 'CAMPUS_COORDINATOR',
+  CAMPUS_PROGRAM_COORDINATOR = 'CAMPUS_PROGRAM_COORDINATOR'
 }
 
-// Update the form schema
+enum TermSystemType {
+  SEMESTER = "SEMESTER",
+  TERM = "TERM",
+  QUARTER = "QUARTER"
+}
+
+// Form validation schema
 const formSchema = z.object({
   name: z.string().min(1, { message: "Program name is required" }),
   description: z.string().optional(),
   calendarId: z.string().min(1, { message: "Calendar is required" }),
   campusIds: z.array(z.string()).min(1, { message: "At least one campus is required" }),
   coordinatorId: z.string().optional(),
+  coordinatorType: z.nativeEnum(CoordinatorType).optional(),
   status: z.nativeEnum(Status),
   termSystem: z.object({
     type: z.nativeEnum(TermSystemType),
@@ -87,12 +88,24 @@ interface ProgramFormProps {
   onSuccess?: () => void;
 }
 
-export const ProgramForm = ({
-  selectedProgram,
-  coordinators,
-  onSuccess
-}: ProgramFormProps) => {
-  // Success handler - moved up
+const transformProgramToFormData = (program: ProgramFormProps['selectedProgram']) => {
+  if (!program) return undefined;
+  
+  return {
+    name: program.name || "", // Ensure name is never null
+    description: program.description || "",
+    calendarId: program.calendarId,
+    campusIds: program.campuses.map(campus => campus.id),
+    coordinatorId: program.coordinatorId || undefined,
+    status: program.status,
+    termSystem: program.termStructures?.[0] || undefined,
+    assessmentSystem: program.assessmentSystem || undefined
+  };
+};
+
+export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
+  const utils = api.useContext();
+
   const handleMutationSuccess = (message: string) => {
     utils.program.getAll.invalidate();
     onSuccess?.();
@@ -102,7 +115,6 @@ export const ProgramForm = ({
     });
   };
 
-  // Error handler - moved up
   const handleMutationError = (error: any) => {
     toast({
       title: "Error",
@@ -111,7 +123,6 @@ export const ProgramForm = ({
     });
   };
 
-  // Form setup
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: selectedProgram ? transformProgramToFormData(selectedProgram) : {
@@ -121,17 +132,15 @@ export const ProgramForm = ({
       campusIds: [],
       status: Status.ACTIVE,
       coordinatorId: undefined,
+      coordinatorType: undefined,
       termSystem: undefined,
       assessmentSystem: undefined
     }
   });
 
-  // API queries
   const { data: calendars, isLoading: calendarsLoading } = api.calendar.getAll.useQuery();
   const { data: campuses, isLoading: campusesLoading } = api.campus.getAll.useQuery();
-  const utils = api.useContext();
 
-  // Mutations
   const createMutation = api.program.create.useMutation({
     onSuccess: () => handleMutationSuccess("Program created successfully"),
     onError: handleMutationError
@@ -142,7 +151,6 @@ export const ProgramForm = ({
     onError: handleMutationError
   });
 
-  // Loading state
   if (calendarsLoading || campusesLoading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -151,7 +159,6 @@ export const ProgramForm = ({
     );
   }
 
-  // Form submission
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       if (selectedProgram) {
@@ -192,40 +199,26 @@ export const ProgramForm = ({
               )}
             />
 
+            {/* Coordinator Type Selection */}
             <FormField
               control={form.control}
-              name="description"
+              name="coordinatorType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Calendar Selection */}
-            <FormField
-              control={form.control}
-              name="calendarId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Calendar</FormLabel>
+                  <FormLabel>Coordinator Type</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
-                    defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a calendar" />
+                        <SelectValue placeholder="Select a coordinator type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {calendars?.map((calendar) => (
-                        <SelectItem key={calendar.id} value={calendar.id}>
-                          {calendar.name}
+                      {Object.values(CoordinatorType).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type.replace(/_/g, ' ')}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -235,49 +228,33 @@ export const ProgramForm = ({
               )}
             />
 
-            {/* Campus Selection */}
+            {/* Assessment System */}
             <FormField
               control={form.control}
-              name="campusIds"
+              name="assessmentSystem"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Campuses</FormLabel>
-                  <FormControl>
-                    <MultiSelect
-                      value={field.value}
-                      onChange={field.onChange}
-                      options={campuses?.map(campus => ({
-                        label: campus.name,
-                        value: campus.id
-                      })) || []}
-                      placeholder="Select campuses"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Coordinator Selection */}
-            <FormField
-              control={form.control}
-              name="coordinatorId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Coordinator</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
+                  <FormLabel>Assessment System</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange({
+                        type: value as AssessmentSystemType,
+                        markingScheme: undefined,
+                        rubric: undefined,
+                        cgpaConfig: undefined
+                      });
+                    }}
+                    value={field.value?.type}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a coordinator" />
+                        <SelectValue placeholder="Select assessment system" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {coordinators?.map((coordinator) => (
-                        <SelectItem key={coordinator.id} value={coordinator.id}>
-                          {coordinator.user.name}
+                      {Object.values(AssessmentSystemType).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type.replace(/_/g, ' ')}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -287,14 +264,49 @@ export const ProgramForm = ({
               )}
             />
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {createMutation.isPending || updateMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
+            {/* Term System */}
+            <FormField
+              control={form.control}
+              name="termSystem"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Term System</FormLabel>
+                  <TermSystemSection
+                    termSystem={field.value || { type: 'SEMESTER', terms: [] }}
+                    selectedProgram={selectedProgram}
+                    onTermSystemTypeChange={(type) => {
+                      field.onChange({ type, terms: [] });
+                    }}
+                    onAddTerm={(type) => {
+                      const terms = field.value?.terms || [];
+                      field.onChange({
+                        type,
+                        terms: [...terms, {
+                          name: `Term ${terms.length + 1}`,
+                          startDate: new Date(),
+                          endDate: new Date(),
+                          type: type,
+                          assessmentPeriods: []
+                        }]
+                      });
+                    }}
+                    onRemoveTerm={(index) => {
+                      const terms = [...(field.value?.terms || [])];
+                      terms.splice(index, 1);
+                      field.onChange({ ...field.value, terms });
+                    }}
+                    onTermChange={(index, fieldName, value) => {
+                      const terms = [...(field.value?.terms || [])];
+                      terms[index] = { ...terms[index], [fieldName]: value };
+                      field.onChange({ ...field.value, terms });
+                    }}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit">
               {selectedProgram ? "Update" : "Create"} Program
             </Button>
           </form>
@@ -302,36 +314,4 @@ export const ProgramForm = ({
       </CardContent>
     </Card>
   );
-};
-
-// Helper function to transform program data
-function transformProgramToFormData(program: Program & { 
-  campuses: Campus[]; 
-  termStructures?: any[]; 
-  assessmentSystem?: any; 
-}) {
-  return {
-    name: program.name || "",  // Handle null case
-    description: program.description || "",
-    calendarId: program.calendarId,
-    campusIds: program.campuses.map(campus => campus.id),
-    coordinatorId: program.coordinatorId || undefined,
-    status: program.status,
-    termSystem: program.termStructures ? {
-      type: program.termSystem as TermSystemType,
-      terms: program.termStructures.map(structure => ({
-        name: structure.name,
-        startDate: new Date(structure.startDate),
-        endDate: new Date(structure.endDate),
-        type: program.termSystem as TermSystemType,
-        assessmentPeriods: structure.assessmentPeriods || []
-      }))
-    } : undefined,
-    assessmentSystem: program.assessmentSystem ? {
-      type: program.assessmentSystem.type as AssessmentSystemType,
-      markingScheme: program.assessmentSystem.markingScheme || undefined,
-      rubric: program.assessmentSystem.rubric || undefined,
-      cgpaConfig: program.assessmentSystem.cgpaConfig || undefined
-    } : undefined
-  };
 }

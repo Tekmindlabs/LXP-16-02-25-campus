@@ -37,9 +37,9 @@ export const TermSystemSection = ({
 			<div>
 				<Label>System Type</Label>
 				<Select
-					value={termSystem.type}
+					value={termSystem?.type || 'SEMESTER'}
 					onValueChange={(value) => onTermSystemTypeChange(value as TermSystemType)}
-					disabled={!!selectedProgram && termSystem.terms.length > 0}
+					disabled={!!selectedProgram && termSystem?.terms?.length > 0}
 				>
 					<SelectTrigger>
 						<SelectValue placeholder="Select term system" />
@@ -55,7 +55,7 @@ export const TermSystemSection = ({
 			</div>
 
 			<div className="space-y-2">
-				{termSystem.terms.map((term, index) => (
+				{termSystem?.terms?.map((term, index) => (
 					<div key={index} className="space-y-2 border p-2 rounded">
 						<div className="flex justify-between items-center">
 							<h4 className="font-medium">{term.name}</h4>
@@ -94,7 +94,7 @@ export const TermSystemSection = ({
 					variant="outline"
 					size="sm"
 					className="w-full mt-2"
-					onClick={() => onAddTerm(termSystem.type)}
+					onClick={() => onAddTerm(termSystem?.type || 'SEMESTER')}
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					Add
