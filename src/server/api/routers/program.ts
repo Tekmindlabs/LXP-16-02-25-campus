@@ -126,22 +126,19 @@ export const programRouter = createTRPCRouter({
         const program = await ctx.prisma.program.findUnique({
           where: { id: input },
           include: {
-            coordinator: {
+            termSystem: {
               include: {
-                user: true,
-              },
-            },
-            calendar: true,
-            classGroups: {
-              include: {
-                classes: {
+                terms: {
                   include: {
-                    students: true,
-                  },
-                },
-              },
+                    assessmentPeriods: true
+                  }
+                }
+              }
             },
-          },
+            assessmentSystem: true,
+            campus: true,
+            coordinator: true
+          }
         });
 
         if (!program) {
@@ -156,7 +153,6 @@ export const programRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch program",
-          cause: error,
         });
       }
     }),
