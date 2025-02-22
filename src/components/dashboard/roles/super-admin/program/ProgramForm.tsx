@@ -62,23 +62,23 @@ const LoadingSpinner = () => (
 type SubmissionTermType = 'SEMESTER' | 'TERM' | 'QUARTER';
 
 const transformTermSystem = (termSystem: ProgramFormData['termSystem']) => {
-    if (!termSystem || termSystem.type === 'CUSTOM') {
-        return {
-            type: 'SEMESTER',
-            terms: []
-        };
-    }
+  if (!termSystem) {
+      return {
+          type: 'SEMESTER' as TermSystemType,
+          terms: []
+      };
+  }
 
-    return {
-        type: termSystem.type === 'CUSTOM' ? 'SEMESTER' : termSystem.type,
-        terms: termSystem.terms.map(term => ({
-            name: term.name,
-            type: term.type === 'CUSTOM' ? 'SEMESTER' : term.type,
-            startDate: term.startDate,
-            endDate: term.endDate,
-            assessmentPeriods: term.assessmentPeriods
-        }))
-    };
+  return {
+      type: termSystem.type,
+      terms: termSystem.terms.map(term => ({
+          name: term.name,
+          type: term.type,
+          startDate: term.startDate,
+          endDate: term.endDate,
+          assessmentPeriods: term.assessmentPeriods
+      }))
+  };
 };
 
 export const ProgramForm = ({ 
@@ -312,32 +312,32 @@ const validateForm = (formData: ProgramFormData): boolean => {
 };
 
 const prepareSubmissionData = (formData: ProgramFormData) => {
-    return {
-        name: formData.name.trim(),
-        description: formData.description?.trim(),
-        calendarId: formData.calendarId,
-        coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
-            undefined : formData.coordinatorId,
-        campusIds: formData.campusId,
-        status: formData.status,
-        termSystem: transformTermSystem(formData.termSystem),
-        assessmentSystem: {
-            type: formData.assessmentSystem?.type || 'MARKING_SCHEME',
-            markingScheme: formData.assessmentSystem?.type === 'MARKING_SCHEME' 
-                ? {
-                    maxMarks: formData.assessmentSystem.markingScheme?.maxMarks || 100,
-                    passingMarks: formData.assessmentSystem.markingScheme?.passingMarks || 40,
-                    gradingScale: formData.assessmentSystem.markingScheme?.gradingScale || []
-                }
-                : undefined,
-            rubric: formData.assessmentSystem?.type === 'RUBRIC' 
-                ? formData.assessmentSystem.rubric 
-                : undefined,
-            cgpaConfig: formData.assessmentSystem?.type === 'CGPA' 
-                ? formData.assessmentSystem.cgpaConfig 
-                : undefined
-        }
-    };
+  return {
+      name: formData.name.trim(),
+      description: formData.description?.trim(),
+      calendarId: formData.calendarId,
+      coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
+          undefined : formData.coordinatorId,
+      campusIds: formData.campusId,
+      status: formData.status,
+      termSystem: transformTermSystem(formData.termSystem),
+      assessmentSystem: formData.assessmentSystem ? {
+          type: formData.assessmentSystem.type as AssessmentSystemType,
+          markingScheme: formData.assessmentSystem.type === 'MARKING_SCHEME' 
+              ? {
+                  maxMarks: formData.assessmentSystem.markingScheme?.maxMarks || 100,
+                  passingMarks: formData.assessmentSystem.markingScheme?.passingMarks || 40,
+                  gradingScale: formData.assessmentSystem.markingScheme?.gradingScale || []
+              }
+              : undefined,
+          rubric: formData.assessmentSystem.type === 'RUBRIC' 
+              ? formData.assessmentSystem.rubric 
+              : undefined,
+          cgpaConfig: formData.assessmentSystem.type === 'CGPA' 
+              ? formData.assessmentSystem.cgpaConfig 
+              : undefined
+      } : undefined
+  };
 };
 
 

@@ -122,32 +122,22 @@ export const programRouter = createTRPCRouter({
     }),
 
     getById: protectedProcedure
-    .input(z.string())
-    .query(async ({ ctx, input }) => {
-        const program = await ctx.prisma.program.findUnique({
-            where: { id: input },
-            include: {
-                campuses: true,
-                calendar: true,
-                coordinator: true,
-                termStructures: {
-                    include: {
-                        assessmentPeriods: true
-                    }
-                },
-                assessmentSystem: true
-            }
-        });
+  .input(z.string())
+  .query(async ({ ctx, input }) => {
+    const program = await ctx.prisma.program.findUnique({
+      where: { id: input },
+      include: includeConfig
+    });
 
-        if (!program) {
-            throw new TRPCError({
-                code: 'NOT_FOUND',
-                message: 'Program not found'
-            });
-        }
+    if (!program) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Program not found'
+      });
+    }
 
-        return program;
-    }),
+    return program;
+  }),
 
   getByProgramId: protectedProcedure
     .input(z.string())
