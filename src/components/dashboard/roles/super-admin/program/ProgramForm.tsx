@@ -59,21 +59,21 @@ const LoadingSpinner = () => (
     </div>
 );
 
-type SubmissionTermType = Omit<TermSystemType, 'CUSTOM'>;
+type SubmissionTermType = 'SEMESTER' | 'TERM' | 'QUARTER';
 
 const transformTermSystem = (termSystem: ProgramFormData['termSystem']) => {
     if (!termSystem || termSystem.type === 'CUSTOM') {
         return {
-            type: 'SEMESTER' as SubmissionTermType,
+            type: 'SEMESTER',
             terms: []
         };
     }
 
     return {
-        type: termSystem.type as SubmissionTermType,
+        type: termSystem.type === 'CUSTOM' ? 'SEMESTER' : termSystem.type,
         terms: termSystem.terms.map(term => ({
             name: term.name,
-            type: term.type as SubmissionTermType,
+            type: term.type === 'CUSTOM' ? 'SEMESTER' : term.type,
             startDate: term.startDate,
             endDate: term.endDate,
             assessmentPeriods: term.assessmentPeriods
