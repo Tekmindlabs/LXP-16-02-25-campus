@@ -5,8 +5,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import { TermSystemType } from "@/types/program";
 
-const termSystemTypes: TermSystemType[] = ['SEMESTER', 'TERM', 'QUARTER'];
-
 interface TermSystemSectionProps {
 	termSystem: {
 		type: TermSystemType;
@@ -37,25 +35,25 @@ export const TermSystemSection = ({
 			<div>
 				<Label>System Type</Label>
 				<Select
-					value={termSystem?.type || 'SEMESTER'}
+					value={termSystem.type}
 					onValueChange={(value) => onTermSystemTypeChange(value as TermSystemType)}
-					disabled={!!selectedProgram && termSystem?.terms?.length > 0}
+					disabled={!!selectedProgram && termSystem.terms.length > 0}
 				>
 					<SelectTrigger>
 						<SelectValue placeholder="Select term system" />
 					</SelectTrigger>
 					<SelectContent>
-    {termSystemTypes.map((type) => (
-        <SelectItem key={type} value={type}>
-            {type.replace('_', ' ')}
-        </SelectItem>
-    ))}
-</SelectContent>
+						{(Object.values(TermSystemType) as TermSystemType[]).map((type) => (
+							<SelectItem key={type} value={type}>
+								{type.replace('_', ' ')}
+							</SelectItem>
+						))}
+					</SelectContent>
 				</Select>
 			</div>
 
 			<div className="space-y-2">
-				{termSystem?.terms?.map((term, index) => (
+				{termSystem.terms.map((term, index) => (
 					<div key={index} className="space-y-2 border p-2 rounded">
 						<div className="flex justify-between items-center">
 							<h4 className="font-medium">{term.name}</h4>
@@ -94,7 +92,7 @@ export const TermSystemSection = ({
 					variant="outline"
 					size="sm"
 					className="w-full mt-2"
-					onClick={() => onAddTerm(termSystem?.type || 'SEMESTER')}
+					onClick={() => onAddTerm(termSystem.type)}
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					Add
@@ -103,3 +101,4 @@ export const TermSystemSection = ({
 		</div>
 	);
 };
+

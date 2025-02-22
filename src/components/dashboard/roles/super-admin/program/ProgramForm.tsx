@@ -1,317 +1,275 @@
-'use client';
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { api } from "@/utils/api";
 import { toast } from "@/hooks/use-toast";
-import { Status, Program } from "@prisma/client";
-import { Campus } from "@/types/campus";
-import { 
-  Form, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormControl, 
-  FormMessage 
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { AssessmentSystemType } from "@/types/assessment";
+import { Status } from "@prisma/client";
+import { BasicInformation } from "./components/BasicInformation";
 import { TermSystemSection } from "./components/TermSystemSection";
-
-enum CoordinatorType {
-  PROGRAM_COORDINATOR = 'PROGRAM_COORDINATOR',
-  CAMPUS_COORDINATOR = 'CAMPUS_COORDINATOR',
-  CAMPUS_PROGRAM_COORDINATOR = 'CAMPUS_PROGRAM_COORDINATOR'
-}
-
-enum TermSystemType {
-  SEMESTER = "SEMESTER",
-  TERM = "TERM",
-  QUARTER = "QUARTER"
-}
-
-// Form validation schema
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Program name is required" }),
-  description: z.string().optional(),
-  calendarId: z.string().min(1, { message: "Calendar is required" }),
-  campusIds: z.array(z.string()).min(1, { message: "At least one campus is required" }),
-  coordinatorId: z.string().optional(),
-  coordinatorType: z.nativeEnum(CoordinatorType).optional(),
-  status: z.nativeEnum(Status),
-  termSystem: z.object({
-    type: z.nativeEnum(TermSystemType),
-    terms: z.array(z.object({
-      name: z.string(),
-      startDate: z.date(),
-      endDate: z.date(),
-      type: z.nativeEnum(TermSystemType),
-      assessmentPeriods: z.array(z.object({
-        name: z.string(),
-        startDate: z.date(),
-        endDate: z.date(),
-        weight: z.number()
-      }))
-    }))
-  }).optional(),
-  assessmentSystem: z.object({
-    type: z.nativeEnum(AssessmentSystemType),
-    markingScheme: z.object({
-      gradingScale: z.array(z.object({
-        grade: z.string(),
-        minPercentage: z.number(),
-        maxPercentage: z.number()
-      })),
-      maxMarks: z.number(),
-      passingMarks: z.number()
-    }).optional(),
-    rubric: z.any().optional(),
-    cgpaConfig: z.any().optional()
-  }).optional()
-});
+import { AssessmentSystem } from "./components/AssessmentSystem"; 
+import { ProgramSubmission } from "./components/ProgramSubmission";
+import { ProgramFormData, TermSystemType } from "@/types/program";
+import { AssessmentSystemType } from "@/types/assessment";
+import { defaultFormData, termConfigs } from "@/constants/program";
+import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent } from "@/components/ui/select";
+import { useEffect } from "react";
 
 interface ProgramFormProps {
-  selectedProgram?: Program & {
-    campuses: Campus[];
-    termStructures?: any[];
-    assessmentSystem?: any;
-  };
-  coordinators: any[];
-  onSuccess?: () => void;
+    selectedProgram?: any;
+    coordinators: any[];
+    onSuccess: () => void;
 }
 
-const transformProgramToFormData = (program: ProgramFormProps['selectedProgram']) => {
-  if (!program) return undefined;
-  
-  return {
-    name: program.name || "", // Ensure name is never null
-    description: program.description || "",
-    calendarId: program.calendarId,
-    campusIds: program.campuses.map(campus => campus.id),
-    coordinatorId: program.coordinatorId || undefined,
-    status: program.status,
-    termSystem: program.termStructures?.[0] || undefined,
-    assessmentSystem: program.assessmentSystem || undefined
-  };
-};
+const LoadingSpinner = () => (
+    <div className="flex items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin" />
+    </div>
+);
 
 export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
-  const utils = api.useContext();
-
-  const handleMutationSuccess = (message: string) => {
-    utils.program.getAll.invalidate();
-    onSuccess?.();
-    toast({
-      title: "Success",
-      description: message
-    });
-  };
-
-  const handleMutationError = (error: any) => {
-    toast({
-      title: "Error",
-      description: error.message,
-      variant: "destructive"
-    });
-  };
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: selectedProgram ? transformProgramToFormData(selectedProgram) : {
-      name: "",
-      description: "",
-      calendarId: "",
-      campusIds: [],
-      status: Status.ACTIVE,
-      coordinatorId: undefined,
-      coordinatorType: undefined,
-      termSystem: undefined,
-      assessmentSystem: undefined
-    }
-  });
-
-  const { data: calendars, isLoading: calendarsLoading } = api.calendar.getAll.useQuery();
-  const { data: campuses, isLoading: campusesLoading } = api.campus.getAll.useQuery();
-
-  const createMutation = api.program.create.useMutation({
-    onSuccess: () => handleMutationSuccess("Program created successfully"),
-    onError: handleMutationError
-  });
-
-  const updateMutation = api.program.update.useMutation({
-    onSuccess: () => handleMutationSuccess("Program updated successfully"),
-    onError: handleMutationError
-  });
-
-  if (calendarsLoading || campusesLoading) {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+    const [formData, setFormData] = useState<ProgramFormData>(() => 
+        selectedProgram ? transformProgramToFormData(selectedProgram) : defaultFormData
     );
-  }
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    try {
-      if (selectedProgram) {
-        await updateMutation.mutateAsync({
-          id: selectedProgram.id,
-          ...data
+    const { data: calendars, isLoading: calendarsLoading, error: calendarsError } = 
+        api.calendar.getAll.useQuery();
+
+    const { data: campuses, isLoading: campusesLoading, error: campusesError } = 
+        api.campus.getAll.useQuery();
+
+    const utils = api.useContext();
+
+    const createMutation = api.program.create.useMutation({
+        onSuccess: handleMutationSuccess,
+        onError: handleMutationError
+    });
+
+    const updateMutation = api.program.update.useMutation({
+        onSuccess: handleMutationSuccess,
+        onError: handleMutationError
+    });
+
+    const handleFormDataChange = (newData: Partial<ProgramFormData>) => {
+        setFormData(prev => ({
+            ...prev,
+            ...newData
+        }));
+    };
+
+    const handleTermSystemChange = (type: TermSystemType) => {
+        const terms = termConfigs[type].terms.map(term => ({
+            ...term,
+            startDate: new Date(),
+            endDate: new Date(),
+            type,
+            assessmentPeriods: []
+        }));
+
+        handleFormDataChange({
+            termSystem: {
+                type,
+                terms
+            }
         });
-      } else {
-        await createMutation.mutateAsync(data);
-      }
-    } catch (error) {
-      console.error("Form submission error:", error);
+    };
+
+    const handleAddTerm = (type: TermSystemType) => {
+        const newTerm = {
+            name: `${type} ${formData.termSystem?.terms.length! + 1}`,
+            startDate: new Date(),
+            endDate: new Date(),
+            type,
+            assessmentPeriods: []
+        };
+
+        handleFormDataChange({
+            termSystem: {
+                ...formData.termSystem!,
+                terms: [...formData.termSystem!.terms, newTerm]
+            }
+        });
+    };
+
+    const handleRemoveTerm = (index: number) => {
+        handleFormDataChange({
+            termSystem: {
+                ...formData.termSystem!,
+                terms: formData.termSystem!.terms.filter((_, i) => i !== index)
+            }
+        });
+    };
+
+    const handleTermChange = (index: number, field: string, value: any) => {
+        const updatedTerms = [...formData.termSystem!.terms];
+        updatedTerms[index] = {
+            ...updatedTerms[index],
+            [field]: value
+        };
+
+        handleFormDataChange({
+            termSystem: {
+                ...formData.termSystem!,
+                terms: updatedTerms
+            }
+        });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!validateForm(formData)) return;
+
+        const submissionData = prepareSubmissionData(formData);
+
+        if (selectedProgram) {
+            updateMutation.mutate({
+                id: selectedProgram.id,
+                ...submissionData
+            });
+        } else {
+            createMutation.mutate(submissionData);
+        }
+    };
+
+    function handleMutationSuccess() {
+        utils.program.getAll.invalidate();
+        onSuccess();
+        toast({
+            title: "Success",
+            description: "Program saved successfully"
+        });
     }
-  };
 
-  return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle>
-          {selectedProgram ? "Edit" : "Create"} Program
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Basic Information */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Program Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    function handleMutationError(error: any) {
+        toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive"
+        });
+    }
 
-            {/* Coordinator Type Selection */}
-            <FormField
-              control={form.control}
-              name="coordinatorType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Coordinator Type</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a coordinator type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.values(CoordinatorType).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type.replace(/_/g, ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    if (calendarsLoading || campusesLoading) {
+        return <LoadingSpinner />;
+    }
 
-            {/* Assessment System */}
-            <FormField
-              control={form.control}
-              name="assessmentSystem"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assessment System</FormLabel>
-                  <Select 
-                    onValueChange={(value) => {
-                      field.onChange({
-                        type: value as AssessmentSystemType,
-                        markingScheme: undefined,
-                        rubric: undefined,
-                        cgpaConfig: undefined
-                      });
-                    }}
-                    value={field.value?.type}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select assessment system" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {Object.values(AssessmentSystemType).map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type.replace(/_/g, ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    if (calendarsError || campusesError) {
+        return (
+            <Alert variant="destructive">
+                <AlertTitle>{calendarsError?.message || campusesError?.message || 'An error occurred'}</AlertTitle>
+            </Alert>
+        );
+    }
 
-            {/* Term System */}
-            <FormField
-              control={form.control}
-              name="termSystem"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Term System</FormLabel>
-                  <TermSystemSection
-                    termSystem={field.value || { type: 'SEMESTER', terms: [] }}
-                    selectedProgram={selectedProgram}
-                    onTermSystemTypeChange={(type) => {
-                      field.onChange({ type, terms: [] });
-                    }}
-                    onAddTerm={(type) => {
-                      const terms = field.value?.terms || [];
-                      field.onChange({
-                        type,
-                        terms: [...terms, {
-                          name: `Term ${terms.length + 1}`,
-                          startDate: new Date(),
-                          endDate: new Date(),
-                          type: type,
-                          assessmentPeriods: []
-                        }]
-                      });
-                    }}
-                    onRemoveTerm={(index) => {
-                      const terms = [...(field.value?.terms || [])];
-                      terms.splice(index, 1);
-                      field.onChange({ ...field.value, terms });
-                    }}
-                    onTermChange={(index, fieldName, value) => {
-                      const terms = [...(field.value?.terms || [])];
-                      terms[index] = { ...terms[index], [fieldName]: value };
-                      field.onChange({ ...field.value, terms });
-                    }}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    return (
+        <Card className="mt-4">
+            <CardHeader>
+                <CardTitle>
+                    {selectedProgram ? "Edit" : "Create"} Program
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ProgramSubmission 
+                    isSubmitting={createMutation.isPending || updateMutation.isPending}
+                    isEditing={!!selectedProgram}
+                    onSubmit={handleSubmit}
+                >
+                    <BasicInformation
+                        formData={formData}
+                        calendars={calendars || []}
+                        coordinators={coordinators}
+                        campuses={campuses || []}
+                        onFormDataChange={handleFormDataChange}
+                    />
 
-            <Button type="submit">
-              {selectedProgram ? "Update" : "Create"} Program
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  );
-}
+                    <TermSystemSection
+                        termSystem={formData.termSystem!}
+                        onTermSystemTypeChange={handleTermSystemChange}
+                        onAddTerm={handleAddTerm}
+                        onRemoveTerm={handleRemoveTerm}
+                        onTermChange={handleTermChange}
+                    />
+
+                    <AssessmentSystem
+                        formData={formData}
+                        onFormDataChange={handleFormDataChange}
+                    />
+                </ProgramSubmission>
+            </CardContent>
+        </Card>
+    );
+};
+
+const transformProgramToFormData = (program: any): ProgramFormData => {
+    return {
+        name: program.name,
+        description: program.description,
+        calendarId: program.calendarId,
+        campusId: Array.isArray(program.campusIds) ? program.campusIds : [], // Ensure campusIds is always an array
+        coordinatorId: program.coordinatorId,
+        status: program.status,
+        termSystem: program.termSystem ? {
+            type: program.termSystem.type,
+            terms: program.termSystem?.terms?.map((term: any) => ({
+                name: term.name,
+                startDate: new Date(term.startDate),
+                endDate: new Date(term.endDate),
+                type: term.type,
+                assessmentPeriods: term.assessmentPeriods?.map((period: any) => ({
+                    name: period.name,
+                    startDate: new Date(period.startDate),
+                    endDate: new Date(period.endDate),
+                    weight: period.weight
+                })) || []
+            })) || [],
+        } : undefined,
+        assessmentSystem: program.assessmentSystem ? {
+            type: program.assessmentSystem.type as AssessmentSystemType,
+            markingScheme: program.assessmentSystem.markingScheme,
+            rubric: program.assessmentSystem.rubric,
+            cgpaConfig: program.assessmentSystem.cgpaConfig
+        } : {
+            type: 'STANDARD' as AssessmentSystemType,
+            markingScheme: 'PERCENTAGE',
+            rubric: null,
+            cgpaConfig: null
+        }
+    };
+};
+
+const validateForm = (formData: ProgramFormData): boolean => {
+        if (!formData.name.trim()) {
+        toast({
+            title: "Validation Error",
+            description: "Program name is required",
+            variant: "destructive"
+        });
+        return false;
+    }
+    if (formData.calendarId === "NO_SELECTION") {
+        toast({
+            title: "Validation Error",
+            description: "Please select a calendar",
+            variant: "destructive"
+        });
+        return false;
+    }
+    return true;
+};
+
+const prepareSubmissionData = (formData: ProgramFormData) => {
+    return {
+        name: formData.name.trim(),
+        description: formData.description?.trim(),
+        calendarId: formData.calendarId,
+        coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
+            undefined : formData.coordinatorId,
+        campusId: formData.campusId,
+        status: formData.status,
+        termSystem: formData.termSystem,
+        assessmentSystem: formData.assessmentSystem
+    };
+};
+
+
+
