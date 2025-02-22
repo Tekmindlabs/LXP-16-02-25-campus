@@ -147,7 +147,7 @@ export const programRouter = createTRPCRouter({
             message: "Program not found",
           });
         }
-
+        
         return program;
       } catch (error) {
         throw new TRPCError({

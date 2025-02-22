@@ -47,7 +47,11 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
     });
 
     const updateMutation = api.program.update.useMutation({
-        onSuccess: handleMutationSuccess,
+        onSuccess: () => {
+            utils.program.getById.invalidate();
+            utils.program.getAll.invalidate();
+            handleMutationSuccess();
+        },
         onError: handleMutationError
     });
 
@@ -58,15 +62,16 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
         }));
     };
 
-    const handleTermSystemChange = (type: TermSystemType) => {
-        const terms = termConfigs[type].terms.map(term => ({
-            ...term,
-            startDate: new Date(),
-            endDate: new Date(),
-            type,
-            assessmentPeriods: []
-        }));
-
+    const handleTermSystemChange = (type: TermSystemType, existingTerms = []) => {
+        const terms = existingTerms.length > 0 
+          ? existingTerms 
+          : termConfigs[type].terms.map(term => ({
+              ...term,
+              startDate: term.startDate || new Date(),
+              endDate: term.endDate || new Date(),
+              type,
+          }));
+        
         handleFormDataChange({
             termSystem: {
                 type,
