@@ -90,7 +90,7 @@ export const BasicInformation = ({
 							value: campus.id,
 							label: campus.name
 						}))}
-						value={formData.campusId || []}
+						value={formData.campusId}
 						onChange={(selected) => onFormDataChange({ campusId: selected })}
 						placeholder="Select Campuses"
 					/>

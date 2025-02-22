@@ -204,16 +204,20 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
 };
 
 const transformProgramToFormData = (program: any): ProgramFormData => {
+    if (!program) return defaultFormData;
+    
     return {
         name: program.name,
         description: program.description,
-        calendarId: program.calendarId,
-        campusId: Array.isArray(program.campusIds) ? program.campusIds : [], // Ensure campusIds is always an array
-        coordinatorId: program.coordinatorId,
+        calendarId: program.calendarId || "",
+        // Fix: Use program.campuses instead of program.campusIds
+        campusId: program.campuses?.map((campus: any) => campus.id) || [],
+        coordinatorId: program.coordinatorId || "",
         status: program.status,
-        termSystem: program.termSystem ? {
-            type: program.termSystem.type,
-            terms: program.termSystem?.terms?.map((term: any) => ({
+        termSystem: {
+            // Fix: Use program.termSystem directly
+            type: program.termSystem || "SEMESTER",
+            terms: program.termStructures?.map((term: any) => ({
                 name: term.name,
                 startDate: new Date(term.startDate),
                 endDate: new Date(term.endDate),
@@ -224,18 +228,13 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
                     endDate: new Date(period.endDate),
                     weight: period.weight
                 })) || []
-            })) || [],
-        } : undefined,
-        assessmentSystem: program.assessmentSystem ? {
-            type: program.assessmentSystem.type as AssessmentSystemType,
-            markingScheme: program.assessmentSystem.markingScheme,
-            rubric: program.assessmentSystem.rubric,
-            cgpaConfig: program.assessmentSystem.cgpaConfig
-        } : {
-            type: 'STANDARD' as AssessmentSystemType,
-            markingScheme: 'PERCENTAGE',
-            rubric: null,
-            cgpaConfig: null
+            })) || []
+        },
+        assessmentSystem: {
+            type: program.assessmentSystem?.type || "STANDARD",
+            markingScheme: program.assessmentSystem?.markingScheme || "PERCENTAGE",
+            rubric: program.assessmentSystem?.rubric || null,
+            cgpaConfig: program.assessmentSystem?.cgpaConfig || null
         }
     };
 };
