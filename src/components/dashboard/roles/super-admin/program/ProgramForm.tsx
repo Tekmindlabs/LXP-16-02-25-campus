@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { api } from "@/utils/api";
 import { toast } from "@/hooks/use-toast";
@@ -17,10 +16,40 @@ import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent } from "@
 import { useEffect } from "react";
 
 interface ProgramFormProps {
-    selectedProgram?: any;
-    coordinators: any[];
-    campuses: any[];
-    calendars: any[];
+    selectedProgram: {
+        id: string;
+        name: string;
+        description?: string;
+        calendarId: string;
+        coordinatorId?: string;
+        status: Status;
+        campuses: Array<{ id: string }>;
+        termStructures: Array<{
+            type: TermSystemType;
+            name: string;
+            startDate: string | Date;
+            endDate: string | Date;
+            assessmentPeriods: Array<{
+                name: string;
+                startDate: string | Date;
+                endDate: string | Date;
+                weight: number;
+            }>;
+        }>;
+        assessmentSystem?: {
+            type: AssessmentSystemType;
+            markingSchemes?: Array<{
+                maxMarks: number;
+                passingMarks: number;
+                gradingScale: Array<any>;
+            }>;
+            rubrics?: Array<any>;
+            cgpaConfig?: any;
+        };
+    } | undefined;
+    coordinators: Array<{ id: string; user: { name: string } }>;
+    campuses: Array<{ id: string; name: string }>;
+    calendars: Array<{ id: string; name: string }>;
     onSuccess: () => void;
 }
 
@@ -80,6 +109,12 @@ export const ProgramForm = ({
             ...prev,
             ...newData
         }));
+    };
+
+    const handleAssessmentSystemChange = (newAssessmentSystem: NonNullable<ProgramFormData['assessmentSystem']>) => {
+        handleFormDataChange({
+            assessmentSystem: newAssessmentSystem
+        });
     };
 
     const handleTermSystemChange = (type: TermSystemType) => {
@@ -152,10 +187,7 @@ export const ProgramForm = ({
                 ...submissionData
             });
         } else {
-            createMutation.mutate({
-                ...submissionData,
-                campusIds: submissionData.campusIds // Ensure we're using campusIds
-            });
+            createMutation.mutate(submissionData);
         }
     };
 
@@ -174,18 +206,6 @@ export const ProgramForm = ({
             description: error.message,
             variant: "destructive"
         });
-    }
-
-    if (calendarsLoading || campusesLoading) {
-        return <LoadingSpinner />;
-    }
-
-    if (calendarsError || campusesError) {
-        return (
-            <Alert variant="destructive">
-                <AlertTitle>{calendarsError?.message || campusesError?.message || 'An error occurred'}</AlertTitle>
-            </Alert>
-        );
     }
 
     return (
