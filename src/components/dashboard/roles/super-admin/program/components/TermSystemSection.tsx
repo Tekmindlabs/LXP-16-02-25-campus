@@ -6,11 +6,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { TermSystemType } from "@/types/program";
 
 const TERM_SYSTEM_TYPES = [
-    TermSystemType.SEMESTER,
-    TermSystemType.TRIMESTER,
-    TermSystemType.QUARTER,
-    TermSystemType.CUSTOM
-];
+    'SEMESTER',
+    'TERM',
+    'QUARTER',
+    'CUSTOM'
+] as const;
 
 interface TermSystemSectionProps {
 	termSystem: {

@@ -13,7 +13,7 @@ export interface Coordinator {
 	};
 }
 
-export type TermSystemType = 'SEMESTER' | 'TERM' | 'QUARTER';
+export type TermSystemType = 'SEMESTER' | 'TERM' | 'QUARTER' | 'CUSTOM';
 
 export interface ProgramFormData {
 	name: string;
