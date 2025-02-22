@@ -235,10 +235,18 @@ export const ProgramForm = ({
                         onRemoveTerm={handleRemoveTerm}
                         onTermChange={handleTermChange}
                     />
-                    <AssessmentSystem
-                        assessmentSystem={formData.assessmentSystem!}
-                        onAssessmentSystemChange={handleAssessmentSystemChange}
-                    />
+                    
+<AssessmentSystem
+    assessmentSystem={formData.assessmentSystem || {
+        type: AssessmentSystemType.MARKING_SCHEME,
+        markingScheme: {
+            maxMarks: 100,
+            passingMarks: 40,
+            gradingScale: []
+        }
+    }}
+    onAssessmentSystemChange={handleAssessmentSystemChange}
+/>
                 </ProgramSubmission>
             </CardContent>
         </Card>

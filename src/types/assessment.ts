@@ -81,10 +81,9 @@ export interface AssessmentSystem {
 }
 
 export enum AssessmentSystemType {
-	MARKING_SCHEME = 'MARKING_SCHEME',
-	RUBRIC = 'RUBRIC',
-	HYBRID = 'HYBRID',
-	CGPA = 'CGPA'
+    MARKING_SCHEME = 'MARKING_SCHEME',
+    RUBRIC = 'RUBRIC',
+    CGPA = 'CGPA'
 }
 
 export interface MarkingScheme {
