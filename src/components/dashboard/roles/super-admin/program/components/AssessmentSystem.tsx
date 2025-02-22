@@ -13,22 +13,23 @@ interface GradeScale {
 }
 
 interface AssessmentSystemProps {
-	formData: Omit<ProgramFormData, 'assessmentSystem'> & {
-		assessmentSystem: {
-			type: AssessmentSystemType;
-			markingScheme?: {
-				maxMarks: number;
-				passingMarks: number;
-				gradingScale: GradeScale[];
-			};
-			rubric?: typeof defaultRubric;
-			cgpaConfig?: typeof defaultCGPAConfig;
+	assessmentSystem: {
+		type: AssessmentSystemType;
+		markingScheme?: {
+			maxMarks: number;
+			passingMarks: number;
+			gradingScale: GradeScale[];
 		};
+		rubric?: typeof defaultRubric;
+		cgpaConfig?: typeof defaultCGPAConfig;
 	};
-	onFormDataChange: (newData: Partial<ProgramFormData>) => void;
+	onAssessmentSystemChange: (newAssessmentSystem: NonNullable<ProgramFormData['assessmentSystem']>) => void;
 }
 
-export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSystemProps) => {
+export const AssessmentSystem = ({ 
+	assessmentSystem, 
+	onAssessmentSystemChange 
+}: AssessmentSystemProps) => {
 	const handleAssessmentTypeChange = (type: AssessmentSystemType) => {
 		const newAssessmentSystem = {
 			type,
@@ -54,38 +55,35 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				: undefined
 		};
 
-		onFormDataChange({
-			assessmentSystem: newAssessmentSystem
-		});
+		onAssessmentSystemChange(newAssessmentSystem);
 	};
 
-	const updateMarkingScheme = (field: keyof NonNullable<typeof formData.assessmentSystem.markingScheme>, value: number) => {
-		if (!formData.assessmentSystem.markingScheme) return;
+	const updateMarkingScheme = (field: keyof NonNullable<typeof assessmentSystem.markingScheme>, value: number) => {
+		if (!assessmentSystem.markingScheme) return;
 
-		onFormDataChange({
-			assessmentSystem: {
-				...formData.assessmentSystem,
-				markingScheme: {
-					...formData.assessmentSystem.markingScheme,
-					[field]: value
-				}
+		onAssessmentSystemChange({
+			...assessmentSystem,
+			markingScheme: {
+				...assessmentSystem.markingScheme,
+				[field]: value
 			}
 		});
 	};
 
-	const updateGradingScale = (index: number, field: keyof GradeScale, value: string | number) => {
-		if (!formData.assessmentSystem.markingScheme?.gradingScale) return;
+	const updateGradingScale = (index: number, field: 'grade' | 'minPercentage' | 'maxPercentage', value: string | number) => {
+		if (!assessmentSystem.markingScheme?.gradingScale) return;
 
-		const newScale = [...formData.assessmentSystem.markingScheme.gradingScale];
-		newScale[index] = { ...newScale[index], [field]: value };
-		
-		onFormDataChange({
-			assessmentSystem: {
-				...formData.assessmentSystem,
-				markingScheme: {
-					...formData.assessmentSystem.markingScheme,
-					gradingScale: newScale
-				}
+		const updatedGradingScale = [...assessmentSystem.markingScheme.gradingScale];
+		updatedGradingScale[index] = {
+			...updatedGradingScale[index],
+			[field]: value
+		};
+
+		onAssessmentSystemChange({
+			...assessmentSystem,
+			markingScheme: {
+				...assessmentSystem.markingScheme,
+				gradingScale: updatedGradingScale
 			}
 		});
 	};
@@ -97,7 +95,7 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 			<div>
 				<Label>Assessment Type</Label>
 				<Select
-					value={formData.assessmentSystem.type}
+					value={assessmentSystem.type}
 					onValueChange={(value: AssessmentSystemType) => handleAssessmentTypeChange(value)}
 				>
 					<SelectTrigger className="w-full">
@@ -113,14 +111,14 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				</Select>
 			</div>
 
-			{formData.assessmentSystem.type === AssessmentSystemType.MARKING_SCHEME && formData.assessmentSystem.markingScheme && (
+			{assessmentSystem.type === AssessmentSystemType.MARKING_SCHEME && assessmentSystem.markingScheme && (
 				<div className="space-y-4">
 					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<Label>Maximum Marks</Label>
 							<Input
 								type="number"
-								value={formData.assessmentSystem.markingScheme.maxMarks}
+								value={assessmentSystem.markingScheme.maxMarks}
 								onChange={(e) => updateMarkingScheme('maxMarks', Number(e.target.value))}
 								min={0}
 							/>
@@ -129,17 +127,17 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 							<Label>Passing Marks</Label>
 							<Input
 								type="number"
-								value={formData.assessmentSystem.markingScheme.passingMarks}
+								value={assessmentSystem.markingScheme.passingMarks}
 								onChange={(e) => updateMarkingScheme('passingMarks', Number(e.target.value))}
 								min={0}
-								max={formData.assessmentSystem.markingScheme.maxMarks}
+								max={assessmentSystem.markingScheme.maxMarks}
 							/>
 						</div>
 					</div>
 
 					<div>
 						<Label>Grading Scale</Label>
-						{formData.assessmentSystem.markingScheme.gradingScale.map((grade, index) => (
+						{assessmentSystem.markingScheme.gradingScale.map((grade, index) => (
 							<div key={index} className="grid grid-cols-3 gap-2 mt-2">
 								<Input
 									placeholder="Grade"
@@ -169,19 +167,17 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				</div>
 			)}
 
-			{formData.assessmentSystem.type === AssessmentSystemType.RUBRIC && (
+			{assessmentSystem.type === AssessmentSystemType.RUBRIC && (
 				<div className="space-y-4">
 					<div>
 						<Label>Rubric Name</Label>
 						<Input
-							value={formData.assessmentSystem.rubric?.name || ''}
-							onChange={(e) => onFormDataChange({
-								assessmentSystem: {
-									...formData.assessmentSystem,
-									rubric: {
-										...formData.assessmentSystem.rubric!,
-										name: e.target.value
-									}
+							value={assessmentSystem.rubric?.name || ''}
+							onChange={(e) => onAssessmentSystemChange({
+								...assessmentSystem,
+								rubric: {
+									...assessmentSystem.rubric!,
+									name: e.target.value
 								}
 							})}
 						/>
@@ -189,21 +185,19 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 
 					<div>
 						<Label>Criteria</Label>
-						{formData.assessmentSystem.rubric?.criteria.map((criterion, index) => (
+						{assessmentSystem.rubric?.criteria.map((criterion, index) => (
 							<div key={index} className="space-y-2 mt-2 p-2 border rounded">
 								<Input
 									placeholder="Criterion Name"
 									value={criterion.name}
 									onChange={(e) => {
-										const newCriteria = [...formData.assessmentSystem.rubric!.criteria];
+										const newCriteria = [...assessmentSystem.rubric!.criteria];
 										newCriteria[index] = { ...criterion, name: e.target.value };
-										onFormDataChange({
-											assessmentSystem: {
-												...formData.assessmentSystem,
-												rubric: {
-													...formData.assessmentSystem.rubric!,
-													criteria: newCriteria
-												}
+										onAssessmentSystemChange({
+											...assessmentSystem,
+											rubric: {
+												...assessmentSystem.rubric!,
+												criteria: newCriteria
 											}
 										});
 									}}
@@ -216,18 +210,16 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 												placeholder="Level Name"
 												value={level.name}
 												onChange={(e) => {
-													const newCriteria = [...formData.assessmentSystem.rubric!.criteria];
+													const newCriteria = [...assessmentSystem.rubric!.criteria];
 													newCriteria[index].levels[levelIndex] = {
 														...level,
 														name: e.target.value
 													};
-													onFormDataChange({
-														assessmentSystem: {
-															...formData.assessmentSystem,
-															rubric: {
-																...formData.assessmentSystem.rubric!,
-																criteria: newCriteria
-															}
+													onAssessmentSystemChange({
+														...assessmentSystem,
+														rubric: {
+															...assessmentSystem.rubric!,
+															criteria: newCriteria
 														}
 													});
 												}}
@@ -237,18 +229,16 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 												placeholder="Points"
 												value={level.points}
 												onChange={(e) => {
-													const newCriteria = [...formData.assessmentSystem.rubric!.criteria];
+													const newCriteria = [...assessmentSystem.rubric!.criteria];
 													newCriteria[index].levels[levelIndex] = {
 														...level,
 														points: Number(e.target.value)
 													};
-													onFormDataChange({
-														assessmentSystem: {
-															...formData.assessmentSystem,
-															rubric: {
-																...formData.assessmentSystem.rubric!,
-																criteria: newCriteria
-															}
+													onAssessmentSystemChange({
+														...assessmentSystem,
+														rubric: {
+															...assessmentSystem.rubric!,
+															criteria: newCriteria
 														}
 													});
 												}}
@@ -262,25 +252,23 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				</div>
 			)}
 
-			{formData.assessmentSystem.type === AssessmentSystemType.CGPA && (
+			{assessmentSystem.type === AssessmentSystemType.CGPA && (
 				<div className="space-y-4">
 					<div>
 						<Label>Grade Points Configuration</Label>
-						{formData.assessmentSystem.cgpaConfig?.gradePoints.map((grade, index) => (
+						{assessmentSystem.cgpaConfig?.gradePoints.map((grade, index) => (
 							<div key={index} className="grid grid-cols-4 gap-2 mt-2">
 								<Input
 									placeholder="Grade"
 									value={grade.grade}
 									onChange={(e) => {
-										const newGradePoints = [...formData.assessmentSystem.cgpaConfig!.gradePoints];
+										const newGradePoints = [...assessmentSystem.cgpaConfig!.gradePoints];
 										newGradePoints[index] = { ...grade, grade: e.target.value };
-										onFormDataChange({
-											assessmentSystem: {
-												...formData.assessmentSystem,
-												cgpaConfig: {
-													...formData.assessmentSystem.cgpaConfig!,
-													gradePoints: newGradePoints
-												}
+										onAssessmentSystemChange({
+											...assessmentSystem,
+											cgpaConfig: {
+												...assessmentSystem.cgpaConfig!,
+												gradePoints: newGradePoints
 											}
 										});
 									}}
@@ -290,15 +278,13 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 									placeholder="Points"
 									value={grade.points}
 									onChange={(e) => {
-										const newGradePoints = [...formData.assessmentSystem.cgpaConfig!.gradePoints];
+										const newGradePoints = [...assessmentSystem.cgpaConfig!.gradePoints];
 										newGradePoints[index] = { ...grade, points: Number(e.target.value) };
-										onFormDataChange({
-											assessmentSystem: {
-												...formData.assessmentSystem,
-												cgpaConfig: {
-													...formData.assessmentSystem.cgpaConfig!,
-													gradePoints: newGradePoints
-												}
+										onAssessmentSystemChange({
+											...assessmentSystem,
+											cgpaConfig: {
+												...assessmentSystem.cgpaConfig!,
+												gradePoints: newGradePoints
 											}
 										});
 									}}
@@ -308,15 +294,13 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 									placeholder="Min %"
 									value={grade.minPercentage}
 									onChange={(e) => {
-										const newGradePoints = [...formData.assessmentSystem.cgpaConfig!.gradePoints];
+										const newGradePoints = [...assessmentSystem.cgpaConfig!.gradePoints];
 										newGradePoints[index] = { ...grade, minPercentage: Number(e.target.value) };
-										onFormDataChange({
-											assessmentSystem: {
-												...formData.assessmentSystem,
-												cgpaConfig: {
-													...formData.assessmentSystem.cgpaConfig!,
-													gradePoints: newGradePoints
-												}
+										onAssessmentSystemChange({
+											...assessmentSystem,
+											cgpaConfig: {
+												...assessmentSystem.cgpaConfig!,
+												gradePoints: newGradePoints
 											}
 										});
 									}}
@@ -326,15 +310,13 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 									placeholder="Max %"
 									value={grade.maxPercentage}
 									onChange={(e) => {
-										const newGradePoints = [...formData.assessmentSystem.cgpaConfig!.gradePoints];
+										const newGradePoints = [...assessmentSystem.cgpaConfig!.gradePoints];
 										newGradePoints[index] = { ...grade, maxPercentage: Number(e.target.value) };
-										onFormDataChange({
-											assessmentSystem: {
-												...formData.assessmentSystem,
-												cgpaConfig: {
-													...formData.assessmentSystem.cgpaConfig!,
-													gradePoints: newGradePoints
-												}
+										onAssessmentSystemChange({
+											...assessmentSystem,
+											cgpaConfig: {
+												...assessmentSystem.cgpaConfig!,
+												gradePoints: newGradePoints
 											}
 										});
 									}}
@@ -346,15 +328,13 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 					<div className="flex items-center space-x-2">
 						<Checkbox
 							id="semesterWeightage"
-							checked={formData.assessmentSystem.cgpaConfig?.semesterWeightage}
+							checked={assessmentSystem.cgpaConfig?.semesterWeightage}
 							onCheckedChange={(checked) => {
-								onFormDataChange({
-									assessmentSystem: {
-										...formData.assessmentSystem,
-										cgpaConfig: {
-											...formData.assessmentSystem.cgpaConfig!,
-											semesterWeightage: checked as boolean
-										}
+								onAssessmentSystemChange({
+									...assessmentSystem,
+									cgpaConfig: {
+										...assessmentSystem.cgpaConfig!,
+										semesterWeightage: checked as boolean
 									}
 								});
 							}}
@@ -365,15 +345,13 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 					<div className="flex items-center space-x-2">
 						<Checkbox
 							id="includeBacklogs"
-							checked={formData.assessmentSystem.cgpaConfig?.includeBacklogs}
+							checked={assessmentSystem.cgpaConfig?.includeBacklogs}
 							onCheckedChange={(checked) => {
-								onFormDataChange({
-									assessmentSystem: {
-										...formData.assessmentSystem,
-										cgpaConfig: {
-											...formData.assessmentSystem.cgpaConfig!,
-											includeBacklogs: checked as boolean
-										}
+								onAssessmentSystemChange({
+									...assessmentSystem,
+									cgpaConfig: {
+										...assessmentSystem.cgpaConfig!,
+										includeBacklogs: checked as boolean
 									}
 								});
 							}}
