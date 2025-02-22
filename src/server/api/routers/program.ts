@@ -119,20 +119,16 @@ export const programRouter = createTRPCRouter({
       }
     }),
 
-  getById: protectedProcedure
+    getById: protectedProcedure
     .input(z.string())
     .query(async ({ ctx, input }) => {
       try {
         const program = await ctx.prisma.program.findUnique({
           where: { id: input },
           include: {
-            termSystem: {
+            terms: {
               include: {
-                terms: {
-                  include: {
-                    assessmentPeriods: true
-                  }
-                }
+                assessmentPeriods: true
               }
             },
             assessmentSystem: true,
@@ -140,7 +136,7 @@ export const programRouter = createTRPCRouter({
             coordinator: true
           }
         });
-
+  
         if (!program) {
           throw new TRPCError({
             code: "NOT_FOUND",

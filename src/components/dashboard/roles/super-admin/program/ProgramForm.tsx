@@ -64,13 +64,14 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
 
     const handleTermSystemChange = (type: TermSystemType, existingTerms = []) => {
         const terms = existingTerms.length > 0 
-          ? existingTerms 
-          : termConfigs[type].terms.map(term => ({
-              ...term,
-              startDate: term.startDate || new Date(),
-              endDate: term.endDate || new Date(),
-              type,
-          }));
+            ? existingTerms 
+            : termConfigs[type].terms.map(term => ({
+                name: term.name,
+                startDate: new Date(), // Don't try to access term.startDate
+                endDate: new Date(),   // Don't try to access term.endDate
+                type,
+                assessmentPeriods: []  // Add the required assessmentPeriods array
+            }));
         
         handleFormDataChange({
             termSystem: {
