@@ -19,6 +19,8 @@ import { useEffect } from "react";
 interface ProgramFormProps {
     selectedProgram?: any;
     coordinators: any[];
+    campuses: any[];
+    calendars: any[];
     onSuccess: () => void;
 }
 
@@ -50,16 +52,16 @@ const transformTermSystem = (termSystem: ProgramFormData['termSystem']) => {
     };
 };
 
-export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
+export const ProgramForm = ({ 
+    selectedProgram, 
+    coordinators, 
+    campuses,
+    calendars,
+    onSuccess 
+}: ProgramFormProps) => {
     const [formData, setFormData] = useState<ProgramFormData>(() => 
         selectedProgram ? transformProgramToFormData(selectedProgram) : defaultFormData
     );
-
-    const { data: calendars, isLoading: calendarsLoading, error: calendarsError } = 
-        api.calendar.getAll.useQuery();
-
-    const { data: campuses, isLoading: campusesLoading, error: campusesError } = 
-        api.campus.getAll.useQuery();
 
     const utils = api.useContext();
 
@@ -201,12 +203,11 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
                 >
                     <BasicInformation
                         formData={formData}
-                        calendars={calendars || []}
+                        calendars={calendars}
                         coordinators={coordinators}
-                        campuses={campuses || []}
+                        campuses={campuses}
                         onFormDataChange={handleFormDataChange}
                     />
-
                     <TermSystemSection
                         termSystem={formData.termSystem!}
                         onTermSystemTypeChange={handleTermSystemChange}
@@ -214,10 +215,9 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
                         onRemoveTerm={handleRemoveTerm}
                         onTermChange={handleTermChange}
                     />
-
                     <AssessmentSystem
-                        formData={formData}
-                        onFormDataChange={handleFormDataChange}
+                        assessmentSystem={formData.assessmentSystem!}
+                        onAssessmentSystemChange={handleAssessmentSystemChange}
                     />
                 </ProgramSubmission>
             </CardContent>

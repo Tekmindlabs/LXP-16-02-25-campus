@@ -4,14 +4,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Status } from "@prisma/client";
-import { ProgramFormData } from "@/types/program";
+import { Calendar, Campus, Coordinator, ProgramFormData } from "@/types/program";
 import { api } from "@/utils/api";
 
 interface BasicInformationProps {
 	formData: ProgramFormData;
-	calendars: any[];
-	coordinators: any[];
-	campuses: any[];
+	calendars: Calendar[];
+	coordinators: Coordinator[];
+	campuses: Campus[];
 	onFormDataChange: (data: Partial<ProgramFormData>) => void;
 }
 

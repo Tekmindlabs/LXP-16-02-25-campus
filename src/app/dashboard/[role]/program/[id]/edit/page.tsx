@@ -41,10 +41,10 @@ export default function EditProgramPage() {
 				</CardHeader>
 				<CardContent>
 					<ProgramForm
+						selectedProgram={program}
 						coordinators={coordinators || []}
 						campuses={campuses || []}
 						calendars={calendars || []}
-						selectedProgram={program}
 						onSuccess={() => router.push('/dashboard/super-admin/program')}
 					/>
 				</CardContent>

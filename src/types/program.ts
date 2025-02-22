@@ -45,8 +45,10 @@ export interface ProgramFormData {
 	};
 }
 
-
-
+export interface Campus {
+	id: string;
+	name: string;
+}
 
 export interface Program extends ProgramFormData {
 	id: string;
@@ -57,5 +59,7 @@ export interface Program extends ProgramFormData {
 export interface ProgramFormProps {
 	selectedProgram?: Program;
 	coordinators: Coordinator[];
+	campuses: Campus[];
+	calendars: Calendar[];
 	onSuccess: () => void;
 }

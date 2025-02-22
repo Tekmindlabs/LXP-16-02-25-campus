@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 export default function AddProgramPage() {
 	const router = useRouter();
 	const { data: coordinators } = api.program.getAvailableCoordinators.useQuery();
+	const { data: campuses } = api.campus.getAll.useQuery();
+	const { data: calendars } = api.calendar.getAll.useQuery();
 
 	return (
 		<div className="space-y-6">
@@ -24,6 +26,8 @@ export default function AddProgramPage() {
 				<CardContent>
 					<ProgramForm
 						coordinators={coordinators || []}
+						campuses={campuses || []}
+						calendars={calendars || []}
 						onSuccess={() => router.push('/dashboard/super-admin/program')}
 					/>
 				</CardContent>
