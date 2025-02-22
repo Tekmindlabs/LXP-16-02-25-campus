@@ -24,21 +24,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
-// Form validation schema
+
+enum TermSystemType {
+    SEMESTER = "SEMESTER",
+    TERM = "TERM",
+    QUARTER = "QUARTER"
+  }
+
+enum AssessmentSystemType {
+  MARKING_SCHEME = "MARKING_SCHEME",
+  RUBRIC = "RUBRIC",
+  HYBRID = "HYBRID",
+  CGPA = "CGPA"
+}
+
+// Update the form schema
 const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, { message: "Program name is required" }),
   description: z.string().optional(),
-  calendarId: z.string().min(1, "Calendar is required"),
-  campusIds: z.array(z.string()).min(1, "At least one campus must be selected"),
+  calendarId: z.string().min(1, { message: "Calendar is required" }),
+  campusIds: z.array(z.string()).min(1, { message: "At least one campus is required" }),
   coordinatorId: z.string().optional(),
   status: z.nativeEnum(Status),
   termSystem: z.object({
-    type: z.string(),
+    type: z.nativeEnum(TermSystemType),
     terms: z.array(z.object({
       name: z.string(),
       startDate: z.date(),
       endDate: z.date(),
-      type: z.string(),
+      type: z.nativeEnum(TermSystemType),
       assessmentPeriods: z.array(z.object({
         name: z.string(),
         startDate: z.date(),
@@ -48,15 +62,23 @@ const formSchema = z.object({
     }))
   }).optional(),
   assessmentSystem: z.object({
-    type: z.string(),
-    markingScheme: z.string().optional(),
+    type: z.nativeEnum(AssessmentSystemType),
+    markingScheme: z.object({
+      gradingScale: z.array(z.object({
+        grade: z.string(),
+        minPercentage: z.number(),
+        maxPercentage: z.number()
+      })),
+      maxMarks: z.number(),
+      passingMarks: z.number()
+    }).optional(),
     rubric: z.any().optional(),
     cgpaConfig: z.any().optional()
   }).optional()
 });
 
 interface ProgramFormProps {
-  selectedProgram?: Program & { 
+  selectedProgram?: Program & {
     campuses: Campus[];
     termStructures?: any[];
     assessmentSystem?: any;
@@ -65,11 +87,30 @@ interface ProgramFormProps {
   onSuccess?: () => void;
 }
 
-export const ProgramForm = ({ 
-  selectedProgram, 
-  coordinators, 
-  onSuccess 
+export const ProgramForm = ({
+  selectedProgram,
+  coordinators,
+  onSuccess
 }: ProgramFormProps) => {
+  // Success handler - moved up
+  const handleMutationSuccess = (message: string) => {
+    utils.program.getAll.invalidate();
+    onSuccess?.();
+    toast({
+      title: "Success",
+      description: message
+    });
+  };
+
+  // Error handler - moved up
+  const handleMutationError = (error: any) => {
+    toast({
+      title: "Error",
+      description: error.message,
+      variant: "destructive"
+    });
+  };
+
   // Form setup
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -124,25 +165,6 @@ export const ProgramForm = ({
     } catch (error) {
       console.error("Form submission error:", error);
     }
-  };
-
-  // Success handler
-  const handleMutationSuccess = (message: string) => {
-    utils.program.getAll.invalidate();
-    onSuccess?.();
-    toast({
-      title: "Success",
-      description: message
-    });
-  };
-
-  // Error handler
-  const handleMutationError = (error: any) => {
-    toast({
-      title: "Error",
-      description: error.message,
-      variant: "destructive"
-    });
   };
 
   return (
@@ -243,8 +265,8 @@ export const ProgramForm = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Coordinator</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
+                  <Select
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -266,8 +288,8 @@ export const ProgramForm = ({
             />
 
             {/* Submit Button */}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={createMutation.isPending || updateMutation.isPending}
             >
               {createMutation.isPending || updateMutation.isPending ? (
@@ -289,22 +311,27 @@ function transformProgramToFormData(program: Program & {
   assessmentSystem?: any; 
 }) {
   return {
-    name: program.name,
+    name: program.name || "",  // Handle null case
     description: program.description || "",
     calendarId: program.calendarId,
     campusIds: program.campuses.map(campus => campus.id),
     coordinatorId: program.coordinatorId || undefined,
     status: program.status,
     termSystem: program.termStructures ? {
-      type: program.termSystem,
+      type: program.termSystem as TermSystemType,
       terms: program.termStructures.map(structure => ({
         name: structure.name,
         startDate: new Date(structure.startDate),
         endDate: new Date(structure.endDate),
-        type: program.termSystem,
+        type: program.termSystem as TermSystemType,
         assessmentPeriods: structure.assessmentPeriods || []
       }))
     } : undefined,
-    assessmentSystem: program.assessmentSystem || undefined
+    assessmentSystem: program.assessmentSystem ? {
+      type: program.assessmentSystem.type as AssessmentSystemType,
+      markingScheme: program.assessmentSystem.markingScheme || undefined,
+      rubric: program.assessmentSystem.rubric || undefined,
+      cgpaConfig: program.assessmentSystem.cgpaConfig || undefined
+    } : undefined
   };
 }
