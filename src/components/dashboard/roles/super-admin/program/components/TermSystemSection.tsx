@@ -5,6 +5,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2 } from "lucide-react";
 import { TermSystemType } from "@/types/program";
 
+const TERM_SYSTEM_TYPES = [
+    TermSystemType.SEMESTER,
+    TermSystemType.TRIMESTER,
+    TermSystemType.QUARTER,
+    TermSystemType.CUSTOM
+];
+
 interface TermSystemSectionProps {
 	termSystem: {
 		type: TermSystemType;
@@ -43,7 +50,7 @@ export const TermSystemSection = ({
 						<SelectValue placeholder="Select term system" />
 					</SelectTrigger>
 					<SelectContent>
-						{(Object.values(TermSystemType) as TermSystemType[]).map((type) => (
+						{TERM_SYSTEM_TYPES.map((type) => (
 							<SelectItem key={type} value={type}>
 								{type.replace('_', ' ')}
 							</SelectItem>
