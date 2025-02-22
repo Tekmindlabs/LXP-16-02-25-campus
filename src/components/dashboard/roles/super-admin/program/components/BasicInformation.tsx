@@ -67,7 +67,7 @@ export const BasicInformation = ({
 				<Label htmlFor="coordinator">Coordinator</Label>
 				<Select
 					value={formData.coordinatorId || ""}
-					onValueChange={(value) => onFormDataChange({ coordinatorId: value || null })}
+					onValueChange={(value) => onFormDataChange({ coordinatorId: value || undefined })}
 				>
 					<SelectTrigger className="w-full">
 						<SelectValue placeholder="Select Coordinator" />

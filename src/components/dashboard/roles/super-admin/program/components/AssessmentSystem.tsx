@@ -6,8 +6,25 @@ import { AssessmentSystemType } from "@/types/assessment";
 import { ProgramFormData } from "@/types/program";
 import { defaultCGPAConfig, defaultRubric } from "@/constants/program";
 
+interface GradeScale {
+	grade: string;
+	minPercentage: number;
+	maxPercentage: number;
+}
+
 interface AssessmentSystemProps {
-	formData: ProgramFormData;
+	formData: Omit<ProgramFormData, 'assessmentSystem'> & {
+		assessmentSystem: {
+			type: AssessmentSystemType;
+			markingScheme?: {
+				maxMarks: number;
+				passingMarks: number;
+				gradingScale: GradeScale[];
+			};
+			rubric?: typeof defaultRubric;
+			cgpaConfig?: typeof defaultCGPAConfig;
+		};
+	};
 	onFormDataChange: (newData: Partial<ProgramFormData>) => void;
 }
 
@@ -42,22 +59,35 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 		});
 	};
 
-	const updateMarkingScheme = (field: string, value: any) => {
+	const updateMarkingScheme = (field: keyof NonNullable<typeof formData.assessmentSystem.markingScheme>, value: number) => {
+		if (!formData.assessmentSystem.markingScheme) return;
+
 		onFormDataChange({
 			assessmentSystem: {
 				...formData.assessmentSystem,
 				markingScheme: {
-					...formData.assessmentSystem.markingScheme!,
+					...formData.assessmentSystem.markingScheme,
 					[field]: value
 				}
 			}
 		});
 	};
 
-	const updateGradingScale = (index: number, field: string, value: any) => {
-		const newScale = [...formData.assessmentSystem.markingScheme!.gradingScale];
+	const updateGradingScale = (index: number, field: keyof GradeScale, value: string | number) => {
+		if (!formData.assessmentSystem.markingScheme?.gradingScale) return;
+
+		const newScale = [...formData.assessmentSystem.markingScheme.gradingScale];
 		newScale[index] = { ...newScale[index], [field]: value };
-		updateMarkingScheme('gradingScale', newScale);
+		
+		onFormDataChange({
+			assessmentSystem: {
+				...formData.assessmentSystem,
+				markingScheme: {
+					...formData.assessmentSystem.markingScheme,
+					gradingScale: newScale
+				}
+			}
+		});
 	};
 
 	return (
@@ -68,7 +98,7 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				<Label>Assessment Type</Label>
 				<Select
 					value={formData.assessmentSystem.type}
-					onValueChange={handleAssessmentTypeChange}
+					onValueChange={(value: AssessmentSystemType) => handleAssessmentTypeChange(value)}
 				>
 					<SelectTrigger className="w-full">
 						<SelectValue placeholder="Select Assessment Type" />
@@ -83,47 +113,55 @@ export const AssessmentSystem = ({ formData, onFormDataChange }: AssessmentSyste
 				</Select>
 			</div>
 
-			{formData.assessmentSystem.type === AssessmentSystemType.MARKING_SCHEME && (
+			{formData.assessmentSystem.type === AssessmentSystemType.MARKING_SCHEME && formData.assessmentSystem.markingScheme && (
 				<div className="space-y-4">
 					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<Label>Maximum Marks</Label>
 							<Input
 								type="number"
-								value={formData.assessmentSystem.markingScheme?.maxMarks}
+								value={formData.assessmentSystem.markingScheme.maxMarks}
 								onChange={(e) => updateMarkingScheme('maxMarks', Number(e.target.value))}
+								min={0}
 							/>
 						</div>
 						<div>
 							<Label>Passing Marks</Label>
 							<Input
 								type="number"
-								value={formData.assessmentSystem.markingScheme?.passingMarks}
+								value={formData.assessmentSystem.markingScheme.passingMarks}
 								onChange={(e) => updateMarkingScheme('passingMarks', Number(e.target.value))}
+								min={0}
+								max={formData.assessmentSystem.markingScheme.maxMarks}
 							/>
 						</div>
 					</div>
 
 					<div>
 						<Label>Grading Scale</Label>
-						{formData.assessmentSystem.markingScheme?.gradingScale.map((grade, index) => (
+						{formData.assessmentSystem.markingScheme.gradingScale.map((grade, index) => (
 							<div key={index} className="grid grid-cols-3 gap-2 mt-2">
 								<Input
 									placeholder="Grade"
 									value={grade.grade}
 									onChange={(e) => updateGradingScale(index, 'grade', e.target.value)}
+									maxLength={2}
 								/>
 								<Input
 									type="number"
 									placeholder="Min %"
 									value={grade.minPercentage}
 									onChange={(e) => updateGradingScale(index, 'minPercentage', Number(e.target.value))}
+									min={0}
+									max={100}
 								/>
 								<Input
 									type="number"
 									placeholder="Max %"
 									value={grade.maxPercentage}
 									onChange={(e) => updateGradingScale(index, 'maxPercentage', Number(e.target.value))}
+									min={0}
+									max={100}
 								/>
 							</div>
 						))}

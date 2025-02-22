@@ -23,6 +23,9 @@ export const termConfigs: Record<TermSystemType, { terms: Array<{ name: string }
 			{ name: 'Quarter 3' },
 			{ name: 'Quarter 4' }
 		]
+	},
+	CUSTOM: {
+		terms: []
 	}
 };
 

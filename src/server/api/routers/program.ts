@@ -60,7 +60,8 @@ const includeConfig = {
     include: {
       academicTerms: {
         include: {
-          assessmentPeriods: true
+          assessmentPeriods: true,
+          term: true
         }
       }
     }

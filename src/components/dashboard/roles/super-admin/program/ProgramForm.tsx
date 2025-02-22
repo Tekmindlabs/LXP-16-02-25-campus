@@ -28,6 +28,28 @@ const LoadingSpinner = () => (
     </div>
 );
 
+type SubmissionTermType = Omit<TermSystemType, 'CUSTOM'>;
+
+const transformTermSystem = (termSystem: ProgramFormData['termSystem']) => {
+    if (!termSystem || termSystem.type === 'CUSTOM') {
+        return {
+            type: 'SEMESTER' as SubmissionTermType,
+            terms: []
+        };
+    }
+
+    return {
+        type: termSystem.type as SubmissionTermType,
+        terms: termSystem.terms.map(term => ({
+            name: term.name,
+            type: term.type as SubmissionTermType,
+            startDate: term.startDate,
+            endDate: term.endDate,
+            assessmentPeriods: term.assessmentPeriods
+        }))
+    };
+};
+
 export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: ProgramFormProps) => {
     const [formData, setFormData] = useState<ProgramFormData>(() => 
         selectedProgram ? transformProgramToFormData(selectedProgram) : defaultFormData
@@ -206,6 +228,23 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
 const transformProgramToFormData = (program: any): ProgramFormData => {
     if (!program) return defaultFormData;
     
+    const assessmentSystem = program.assessmentSystem ? {
+        type: program.assessmentSystem.type as AssessmentSystemType,
+        markingScheme: program.assessmentSystem.type === 'MARKING_SCHEME' 
+            ? {
+                maxMarks: program.assessmentSystem.markingSchemes?.[0]?.maxMarks || 100,
+                passingMarks: program.assessmentSystem.markingSchemes?.[0]?.passingMarks || 40,
+                gradingScale: program.assessmentSystem.markingSchemes?.[0]?.gradingScale || []
+            }
+            : undefined,
+        rubric: program.assessmentSystem.type === 'RUBRIC'
+            ? program.assessmentSystem.rubrics?.[0] || null
+            : undefined,
+        cgpaConfig: program.assessmentSystem.type === 'CGPA'
+            ? program.assessmentSystem.cgpaConfig || null
+            : undefined
+    } : defaultFormData.assessmentSystem;
+
     return {
         name: program.name,
         description: program.description,
@@ -219,7 +258,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
                 name: term.name,
                 startDate: new Date(term.startDate),
                 endDate: new Date(term.endDate),
-                type: term.type,
+                type: term.type as TermSystemType,
                 assessmentPeriods: term.assessmentPeriods?.map((period: any) => ({
                     name: period.name,
                     startDate: new Date(period.startDate),
@@ -228,29 +267,7 @@ const transformProgramToFormData = (program: any): ProgramFormData => {
                 })) || []
             })) || []
         },
-        assessmentSystem: {
-            type: program.assessmentSystem?.type || "STANDARD",
-            markingScheme: program.assessmentSystem?.type === "MARKING_SCHEME" 
-                ? {
-                    maxMarks: program.assessmentSystem.markingSchemes?.[0]?.maxMarks || 100,
-                    passingMarks: program.assessmentSystem.markingSchemes?.[0]?.passingMarks || 40,
-                    gradingScale: program.assessmentSystem.markingSchemes?.[0]?.gradingScale || [
-                        { grade: 'A', minPercentage: 80, maxPercentage: 100 },
-                        { grade: 'B', minPercentage: 70, maxPercentage: 79 },
-                        { grade: 'C', minPercentage: 60, maxPercentage: 69 },
-                        { grade: 'D', minPercentage: 50, maxPercentage: 59 },
-                        { grade: 'E', minPercentage: 40, maxPercentage: 49 },
-                        { grade: 'F', minPercentage: 0, maxPercentage: 39 }
-                    ]
-                }
-                : undefined,
-            rubric: program.assessmentSystem?.type === "RUBRIC"
-                ? program.assessmentSystem.rubrics?.[0] || null
-                : undefined,
-            cgpaConfig: program.assessmentSystem?.type === "CGPA"
-                ? program.assessmentSystem.cgpaConfig || null
-                : undefined
-        }
+        assessmentSystem
     };
 };
 
@@ -281,10 +298,25 @@ const prepareSubmissionData = (formData: ProgramFormData) => {
         calendarId: formData.calendarId,
         coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
             undefined : formData.coordinatorId,
-        campusIds: formData.campusId, // Ensure we're using campusIds here
+        campusIds: formData.campusId,
         status: formData.status,
-        termSystem: formData.termSystem,
-        assessmentSystem: formData.assessmentSystem
+        termSystem: transformTermSystem(formData.termSystem),
+        assessmentSystem: {
+            type: formData.assessmentSystem?.type || 'MARKING_SCHEME',
+            markingScheme: formData.assessmentSystem?.type === 'MARKING_SCHEME' 
+                ? {
+                    maxMarks: formData.assessmentSystem.markingScheme?.maxMarks || 100,
+                    passingMarks: formData.assessmentSystem.markingScheme?.passingMarks || 40,
+                    gradingScale: formData.assessmentSystem.markingScheme?.gradingScale || []
+                }
+                : undefined,
+            rubric: formData.assessmentSystem?.type === 'RUBRIC' 
+                ? formData.assessmentSystem.rubric 
+                : undefined,
+            cgpaConfig: formData.assessmentSystem?.type === 'CGPA' 
+                ? formData.assessmentSystem.cgpaConfig 
+                : undefined
+        }
     };
 };
 
