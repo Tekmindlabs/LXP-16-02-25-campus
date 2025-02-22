@@ -19,7 +19,7 @@ export interface ProgramFormData {
 	name: string;
 	description?: string;
 	calendarId: string;
-	campusId: string[];
+	campusId: string[]; // This remains as campusId for form handling
 	coordinatorId?: string;
 	status: Status;
 	termSystem?: {
@@ -37,40 +37,11 @@ export interface ProgramFormData {
 			}>;
 		}>;
 	};
-	assessmentSystem: {
+	assessmentSystem?: {
 		type: AssessmentSystemType;
-		markingScheme?: {
-			maxMarks: number;
-			passingMarks: number;
-			gradingScale: Array<{
-				grade: string;
-				minPercentage: number;
-				maxPercentage: number;
-			}>;
-		};
-		rubric?: {
-			name: string;
-			description?: string;
-			criteria: Array<{
-				name: string;
-				description?: string;
-				levels: Array<{
-					name: string;
-					points: number;
-					description?: string;
-				}>;
-			}>;
-		};
-		cgpaConfig?: {
-			gradePoints: Array<{
-				grade: string;
-				points: number;
-				minPercentage: number;
-				maxPercentage: number;
-			}>;
-			semesterWeightage: boolean;
-			includeBacklogs: boolean;
-		};
+		markingScheme?: any;
+		rubric?: any;
+		cgpaConfig?: any;
 	};
 }
 

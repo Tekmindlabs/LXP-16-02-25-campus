@@ -12,12 +12,16 @@ interface BasicInformationProps {
 	calendars: any[];
 	coordinators: any[];
 	campuses: any[];
-	onFormDataChange: (newData: Partial<ProgramFormData>) => void;
+	onFormDataChange: (data: Partial<ProgramFormData>) => void;
 }
 
-export const BasicInformation = ({ formData, calendars, coordinators, campuses, onFormDataChange }: BasicInformationProps) => {
-
-
+export const BasicInformation = ({
+	formData,
+	calendars,
+	coordinators,
+	campuses,
+	onFormDataChange
+}: BasicInformationProps) => {
 	return (
 		<div className="space-y-4">
 			<div>
@@ -86,7 +90,7 @@ export const BasicInformation = ({ formData, calendars, coordinators, campuses, 
 							value: campus.id,
 							label: campus.name
 						}))}
-						value={formData.campusId}
+						value={formData.campusId || []}
 						onChange={(selected) => onFormDataChange({ campusId: selected })}
 						placeholder="Select Campuses"
 					/>

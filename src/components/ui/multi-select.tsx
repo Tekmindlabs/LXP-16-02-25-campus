@@ -16,51 +16,67 @@ import {
 
 interface MultiSelectProps<T extends string | number = string> {
 	options: { label: string; value: T }[];
-	value: T[];
+	value?: T[];
 	onChange: (value: T[]) => void;
 	placeholder?: string;
 	disabled?: boolean;
+	className?: string;
+	emptyMessage?: string;
 }
 
 export function MultiSelect<T extends string | number = string>({ 
 	options, 
-	value, 
+	value = [], // Provide default empty array
 	onChange, 
 	placeholder = "Select options...",
-	disabled = false 
+	disabled = false,
+	className,
+	emptyMessage = "No options available"
 }: MultiSelectProps<T>) {
 	const [open, setOpen] = React.useState(false);
+
+	// Ensure options is always an array
+	const safeOptions = Array.isArray(options) ? options : [];
+	
+	// Ensure value is always an array
+	const safeValue = Array.isArray(value) ? value : [];
+
+	const selectedLabels = safeValue
+		.map(v => safeOptions.find(opt => opt.value === v)?.label)
+		.filter(Boolean)
+		.join(", ");
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button 
 					variant="outline" 
-					className="w-full justify-start"
+					role="combobox"
+					aria-expanded={open}
+					className={cn("w-full justify-start", className)}
 					disabled={disabled}
 				>
-					{value.length > 0
-						? value.map(v => options.find(opt => opt.value === v)?.label).join(", ")
-						: placeholder}
+					{selectedLabels || placeholder}
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent className="w-[200px] p-0">
 				<Command>
+					<CommandEmpty>{emptyMessage}</CommandEmpty>
 					<CommandGroup>
-						{options.map((option) => (
+						{safeOptions.map((option) => (
 							<CommandItem
-								key={option.value}
+								key={String(option.value)}
 								onSelect={() => {
-									const newValue = value.includes(option.value)
-										? value.filter(v => v !== option.value)
-										: [...value, option.value];
+									const newValue = safeValue.includes(option.value)
+										? safeValue.filter(v => v !== option.value)
+										: [...safeValue, option.value];
 									onChange(newValue);
 								}}
 							>
 								<Check
 									className={cn(
 										"mr-2 h-4 w-4",
-										value.includes(option.value) ? "opacity-100" : "opacity-0"
+										safeValue.includes(option.value) ? "opacity-100" : "opacity-0"
 									)}
 								/>
 								{option.label}

@@ -128,7 +128,10 @@ export const ProgramForm = ({ selectedProgram, coordinators, onSuccess }: Progra
                 ...submissionData
             });
         } else {
-            createMutation.mutate(submissionData);
+            createMutation.mutate({
+                ...submissionData,
+                campusIds: submissionData.campusIds // Ensure we're using campusIds
+            });
         }
     };
 
@@ -264,7 +267,7 @@ const prepareSubmissionData = (formData: ProgramFormData) => {
         calendarId: formData.calendarId,
         coordinatorId: formData.coordinatorId === "NO_SELECTION" ? 
             undefined : formData.coordinatorId,
-        campusId: formData.campusId,
+        campusIds: formData.campusId, // Ensure we're using campusIds here
         status: formData.status,
         termSystem: formData.termSystem,
         assessmentSystem: formData.assessmentSystem
