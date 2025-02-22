@@ -126,17 +126,21 @@ export const programRouter = createTRPCRouter({
         const program = await ctx.prisma.program.findUnique({
           where: { id: input },
           include: {
-            terms: {
+            termStructures: {
               include: {
-                assessmentPeriods: true
+                academicTerms: {
+                  include: {
+                    assessmentPeriods: true
+                  }
+                }
               }
             },
             assessmentSystem: true,
-            campus: true,
+            campuses: true, // Changed from 'campus' to 'campuses'
             coordinator: true
           }
         });
-  
+    
         if (!program) {
           throw new TRPCError({
             code: "NOT_FOUND",
