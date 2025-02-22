@@ -27,6 +27,7 @@ const includeConfig = {
     },
   },
   calendar: true,
+  campuses: true,
   classGroups: {
     include: {
       classes: {
@@ -170,6 +171,7 @@ export const programRouter = createTRPCRouter({
               },
             },
             calendar: true,
+            campuses: true,
             classGroups: {
               include: {
                 classes: {
@@ -206,6 +208,7 @@ export const programRouter = createTRPCRouter({
         description: z.string().optional(),
         calendarId: z.string(),
         coordinatorId: z.string().optional(),
+        campusIds: z.array(z.string()),
         status: z.nativeEnum(Status).default(Status.ACTIVE),
         termSystem: termSystemInput.optional(),
         assessmentSystem: z.object({
@@ -277,7 +280,23 @@ export const programRouter = createTRPCRouter({
           });
           }
         }
+// In create mutation
+if (input.campusIds) {
+  const campuses = await ctx.prisma.campus.findMany({
+    where: {
+      id: {
+        in: input.campusIds
+      }
+    }
+  });
 
+  if (campuses.length !== input.campusIds.length) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "One or more campus IDs are invalid",
+    });
+  }
+}
         // Create program with all relationships
         const program = await ctx.prisma.program.create({
           data: {
@@ -285,6 +304,7 @@ export const programRouter = createTRPCRouter({
             description: input.description,
             calendar: { connect: { id: input.calendarId } },
             coordinator: input.coordinatorId ? { connect: { id: input.coordinatorId } } : undefined,
+            campuses: { connect: input.campusIds.map(id => ({ id }))},
             status: input.status,
             termSystem: input.termSystem?.type,
             termStructures: input.termSystem ? {
@@ -372,6 +392,7 @@ export const programRouter = createTRPCRouter({
         description: z.string().optional(),
         calendarId: z.string().optional(),
         coordinatorId: z.string().nullable().optional(),
+        campusIds: z.array(z.string()).optional(),
         status: z.nativeEnum(Status).optional(),
         termSystem: termSystemInput.optional(),
         assessmentSystem: z.object({
@@ -793,6 +814,7 @@ export const programRouter = createTRPCRouter({
               },
             },
             calendar: true,
+            campuses: true, 
           },
         });
 
