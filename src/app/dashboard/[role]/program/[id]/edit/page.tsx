@@ -4,18 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgramForm } from "@/components/dashboard/roles/super-admin/program/ProgramForm";
 import { api } from "@/utils/api";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useParams as useNextParams } from "next/navigation";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function EditProgramPage() {
 	const router = useRouter();
-	const params = useParams();
-	const programId = typeof params?.id === 'string' ? params.id : '';
+	const params = useNextParams();
+	const programId = params?.id as string;
 	
-	const { data: program } = api.program.getById.useQuery(programId);
-	const { data: coordinators } = api.program.getAvailableCoordinators.useQuery();
+	const { data: program, isLoading: programLoading } = api.program.getById.useQuery(programId);
+	const { data: coordinators, isLoading: coordinatorsLoading } = api.program.getAvailableCoordinators.useQuery();
+	const { data: campuses, isLoading: campusesLoading } = api.campus.getAll.useQuery();
+	const { data: calendars, isLoading: calendarsLoading } = api.calendar.getAll.useQuery();
+
+	const isLoading = programLoading || coordinatorsLoading || campusesLoading || calendarsLoading;
+
+	if (isLoading) {
+		return <LoadingSpinner />;
+	}
 
 	if (!program) {
-		return <div>Loading...</div>;
+		return <div>Program not found</div>;
 	}
 
 	return (
@@ -32,6 +42,8 @@ export default function EditProgramPage() {
 				<CardContent>
 					<ProgramForm
 						coordinators={coordinators || []}
+						campuses={campuses || []}
+						calendars={calendars || []}
 						selectedProgram={program}
 						onSuccess={() => router.push('/dashboard/super-admin/program')}
 					/>
