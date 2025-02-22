@@ -31,37 +31,67 @@ export default function EditProgramPage() {
     return <div>Program not found</div>;
   }
 
+  // Transform term structures and assessment periods
+  const transformedTermStructures = program.termStructures?.map(termStructure => ({
+    type: termStructure.type as TermSystemType,
+    name: termStructure.name,
+    startDate: new Date(termStructure.startDate),
+    endDate: new Date(termStructure.endDate),
+    assessmentPeriods: termStructure.assessmentPeriods?.map(period => ({
+      name: period.name,
+      startDate: new Date(period.startDate),
+      endDate: new Date(period.endDate),
+      weight: period.weight
+    })) ?? []
+  })) ?? [];
+
+  // Transform assessment system
+  const transformedAssessmentSystem = program.assessmentSystem ? {
+    type: program.assessmentSystem.type as AssessmentSystemType,
+    markingSchemes: program.assessmentSystem.markingSchemes?.map(scheme => ({
+      maxMarks: scheme.maxMarks,
+      passingMarks: scheme.passingMarks,
+      gradingScale: scheme.gradingScale
+    })) ?? [],
+    rubrics: program.assessmentSystem.rubrics ?? undefined,
+    cgpaConfig: program.assessmentSystem.cgpaConfig ?? undefined
+  } : undefined;
+
   const transformedProgram = {
-	id: program.id,
-	name: program.name ?? "",
-	description: program.description ?? undefined,
-	calendarId: program.calendar.id,
-	coordinatorId: program.coordinator?.id,
-	status: program.status,
-	campuses: program.campuses.map(campus => ({ id: campus.id })),
-	termStructures: program.terms?.map((term: Term) => ({
-	  type: term.type as TermSystemType,
-	  name: term.name,
-	  startDate: new Date(term.startDate),
-	  endDate: new Date(term.endDate),
-	  assessmentPeriods: term.assessmentPeriods?.map((period: AssessmentPeriod) => ({
-		name: period.name,
-		startDate: new Date(period.startDate),
-		endDate: new Date(period.endDate),
-		weight: period.weight
-	  })) ?? []
-	})) ?? [],
-	assessmentSystem: program.assessmentSystem ? {
-	  type: program.assessmentSystem.type as AssessmentSystemType,
-	  markingSchemes: program.assessmentSystem.markingSchemes?.map(scheme => ({
-		maxMarks: scheme.maxMarks,
-		passingMarks: scheme.passingMarks,
-		gradingScale: scheme.gradingScale
-	  })) ?? [],
-	  rubrics: program.assessmentSystem.rubrics ?? undefined,
-	  cgpaConfig: program.assessmentSystem.cgpaConfig ?? undefined
-	} : undefined
+    id: program.id,
+    name: program.name ?? "",
+    description: program.description ?? undefined,
+    calendarId: program.calendar.id,
+    coordinatorId: program.coordinator?.id,
+    status: program.status,
+    campuses: program.campuses.map(campus => ({ id: campus.id })),
+    termStructures: transformedTermStructures,
+    termSystem: {
+      type: program.termSystem as TermSystemType,
+      terms: transformedTermStructures
+    },
+    assessmentSystem: transformedAssessmentSystem
   };
+
+  // Transform coordinators data
+  const transformedCoordinators = coordinators?.map(coord => ({
+    id: coord.id,
+    user: {
+      name: coord.user.name
+    }
+  })) ?? [];
+
+  // Transform campuses data
+  const transformedCampuses = campuses?.map(campus => ({
+    id: campus.id,
+    name: campus.name
+  })) ?? [];
+
+  // Transform calendars data
+  const transformedCalendars = calendars?.map(calendar => ({
+    id: calendar.id,
+    name: calendar.name
+  })) ?? [];
 
   return (
     <div className="space-y-6">
@@ -77,15 +107,13 @@ export default function EditProgramPage() {
         <CardContent>
           <ProgramForm
             selectedProgram={transformedProgram}
-            coordinators={coordinators?.map(coord => ({
-              id: coord.id,
-              user: {
-                name: coord.user.name || ""
-              }
-            })) ?? []}
-            campuses={campuses ?? []}
-            calendars={calendars ?? []}
-            onSuccess={() => router.push('/dashboard/super-admin/program')}
+            coordinators={transformedCoordinators}
+            campuses={transformedCampuses}
+            calendars={transformedCalendars}
+            onSuccess={() => {
+              router.push('/dashboard/super-admin/program');
+              router.refresh(); // Ensure the list is refreshed after edit
+            }}
           />
         </CardContent>
       </Card>
