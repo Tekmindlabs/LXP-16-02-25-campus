@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgramForm } from "@/components/dashboard/roles/super-admin/program/ProgramForm";
 import { api } from "@/utils/api";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Program, ProgramFormProps } from "@/types/program";
 import { AssessmentSystemType } from "@/types/assessment";
@@ -31,35 +32,37 @@ export default function EditProgramPage() {
   }
 
   const transformedProgram = {
-    id: program.id,
-    name: program.name ?? "",
-    description: program.description ?? undefined,
-    calendarId: program.calendar.id,
-    coordinatorId: program.coordinator?.id,
-    status: program.status,
-    campuses: program.campuses.map(campus => ({ id: campus.id })),
-    termStructures: program.termStructures?.map(term => ({
-      type: term.type as TermSystemType,
-      name: term.name,
-      startDate: new Date(term.startDate),
-      endDate: new Date(term.endDate),
-      assessmentPeriods: term.assessmentPeriods?.map((period: any) => ({
-        name: period.name,
-        startDate: new Date(period.startDate),
-        endDate: new Date(period.endDate),
-        weight: period.weight
-      })) ?? []
-    })) ?? [],
-    assessmentSystem: program.assessmentSystem ? {
-      type: program.assessmentSystem.type as AssessmentSystemType,
-      markingSchemes: program.assessmentSystem.markingSchemes?.map(scheme => ({
-        maxMarks: scheme.maxMarks,
-        passingMarks: scheme.passingMarks,
-        gradingScale: scheme.gradingScale
-      })) ?? [],
-      rubrics: program.assessmentSystem.rubrics ?? undefined,
-      cgpaConfig: program.assessmentSystem.cgpaConfig ?? undefined
-    } : undefined
+	id: program.id,
+	name: program.name ?? "",
+	description: program.description ?? undefined,
+	calendarId: program.calendar.id,
+	coordinatorId: program.coordinator?.id,
+	status: program.status,
+	campuses: program.campuses.map(campus => ({ id: campus.id })),
+	termStructures: program.academicTerms?.map(academicTerm => ({
+	  // Access the properties correctly based on the API response structure
+	  type: academicTerm.term.type as TermSystemType,
+	  name: academicTerm.term.name,
+	  startDate: new Date(academicTerm.term.startDate),
+	  endDate: new Date(academicTerm.term.endDate),
+	  // Access assessment periods from the correct path
+	  assessmentPeriods: academicTerm.assessmentPeriods?.map((period) => ({
+		name: period.name,
+		startDate: new Date(period.startDate),
+		endDate: new Date(period.endDate),
+		weight: period.weight
+	  })) ?? []
+	})) ?? [],
+	assessmentSystem: program.assessmentSystem ? {
+	  type: program.assessmentSystem.type as AssessmentSystemType,
+	  markingSchemes: program.assessmentSystem.markingSchemes?.map(scheme => ({
+		maxMarks: scheme.maxMarks,
+		passingMarks: scheme.passingMarks,
+		gradingScale: scheme.gradingScale
+	  })) ?? [],
+	  rubrics: program.assessmentSystem.rubrics ?? undefined,
+	  cgpaConfig: program.assessmentSystem.cgpaConfig ?? undefined
+	} : undefined
   };
 
   return (
