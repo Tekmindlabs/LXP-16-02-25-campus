@@ -77,7 +77,7 @@ export const defaultFormData: ProgramFormData = {
 		}))
 	},
 	assessmentSystem: {
-		type: "MARKING_SCHEME",
+		type: AssessmentSystemType.MARKING_SCHEME,
 		markingScheme: {
 			maxMarks: 100,
 			passingMarks: 40,

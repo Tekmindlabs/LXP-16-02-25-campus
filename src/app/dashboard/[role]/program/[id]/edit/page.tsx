@@ -7,6 +7,8 @@ import { api } from "@/utils/api";
 import { useRouter, useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Program, ProgramFormProps } from "@/types/program";
+import { AssessmentSystemType } from "@/types/assessment";
+import { TermSystemType } from "@/types/program";
 
 export default function EditProgramPage() {
   const router = useRouter();
@@ -28,7 +30,6 @@ export default function EditProgramPage() {
     return <div>Program not found</div>;
   }
 
-  // Transform program data with proper null checks for assessmentPeriods
   const transformedProgram = {
     id: program.id,
     name: program.name ?? "",
@@ -38,25 +39,24 @@ export default function EditProgramPage() {
     status: program.status,
     campuses: program.campuses.map(campus => ({ id: campus.id })),
     termStructures: program.termStructures?.map(term => ({
-      type: term.type,
+      type: term.type as TermSystemType,
       name: term.name,
       startDate: new Date(term.startDate),
       endDate: new Date(term.endDate),
-      // Add null check for assessmentPeriods
-      assessmentPeriods: term.assessmentPeriods?.map(period => ({
+      assessmentPeriods: term.assessmentPeriods?.map((period: any) => ({
         name: period.name,
         startDate: new Date(period.startDate),
         endDate: new Date(period.endDate),
         weight: period.weight
-      })) ?? [] // Provide empty array as fallback
-    })) ?? [], // Provide empty array as fallback for termStructures
+      })) ?? []
+    })) ?? [],
     assessmentSystem: program.assessmentSystem ? {
-      type: program.assessmentSystem.type,
+      type: program.assessmentSystem.type as AssessmentSystemType,
       markingSchemes: program.assessmentSystem.markingSchemes?.map(scheme => ({
         maxMarks: scheme.maxMarks,
         passingMarks: scheme.passingMarks,
         gradingScale: scheme.gradingScale
-      })) ?? [], // Provide empty array as fallback
+      })) ?? [],
       rubrics: program.assessmentSystem.rubrics ?? undefined,
       cgpaConfig: program.assessmentSystem.cgpaConfig ?? undefined
     } : undefined
@@ -76,7 +76,12 @@ export default function EditProgramPage() {
         <CardContent>
           <ProgramForm
             selectedProgram={transformedProgram}
-            coordinators={coordinators ?? []}
+            coordinators={coordinators?.map(coord => ({
+              id: coord.id,
+              user: {
+                name: coord.user.name || ""
+              }
+            })) ?? []}
             campuses={campuses ?? []}
             calendars={calendars ?? []}
             onSuccess={() => router.push('/dashboard/super-admin/program')}
@@ -86,9 +91,6 @@ export default function EditProgramPage() {
     </div>
   );
 }
-
-
-
 
 
 
