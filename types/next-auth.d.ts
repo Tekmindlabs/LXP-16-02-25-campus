@@ -1,18 +1,20 @@
-// In types/next-auth.d.ts
-declare module "next-auth" {
-	interface Session {
-		user: {
-			id: string;
-			role: string;
-			roles: string[];
-			permissions: string[];
-		} & DefaultSession["user"]
-	}
+import 'next-auth';
+import { DefaultRoles } from '@/utils/permissions';
 
-	interface User {
-		id: string;
-		role: string;
-		roles: string[];
-		permissions: string[];
-	}
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: DefaultRoles;  // Add the role property here
+    }
+  }
 }
+
+
+
+
+
+
+

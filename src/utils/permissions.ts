@@ -222,9 +222,9 @@ export function hasPermission(
   session: Session | null,
   permission: Permission | keyof typeof COORDINATOR_PERMISSIONS
 ): boolean {
-  if (!session?.user?.role) return false;
-
-  const userRole = session.user.role as DefaultRoles;
+  if (!session?.user?.roles?.length) return false;
+  
+  const userRole = session.user.roles[0] as DefaultRoles;
 
   // Check regular permissions
   if (typeof permission === 'string' && permission in Permissions) {
