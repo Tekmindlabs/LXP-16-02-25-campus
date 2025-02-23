@@ -271,4 +271,11 @@ export interface CampusAttendance {
   };
 }
 
+export enum CampusRoleType {
+  CAMPUS_ADMIN = 'CAMPUS_ADMIN',
+  CAMPUS_MANAGER = 'CAMPUS_MANAGER',
+  CAMPUS_TEACHER = 'CAMPUS_TEACHER',
+  CAMPUS_PROGRAM_COORDINATOR = 'CAMPUS_PROGRAM_COORDINATOR'
+}
+
 export { Status };

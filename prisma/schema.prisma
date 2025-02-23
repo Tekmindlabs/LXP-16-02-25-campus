@@ -115,7 +115,7 @@ model CampusRole {
   roleId    String // Foreign key for Role
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  permissions String[]
   user   User   @relation(fields: [userId], references: [id])
   campus Campus @relation(fields: [campusId], references: [id])
   role   Role   @relation(fields: [roleId], references: [id]) // Relation to Role model
