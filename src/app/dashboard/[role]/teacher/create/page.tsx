@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TeacherForm } from "@/components/dashboard/roles/super-admin/teacher/TeacherForm";
+import TeacherForm from "@/components/dashboard/roles/super-admin/teacher/TeacherForm";
 import { api } from "@/utils/api";
 
 export default function CreateTeacherPage() {

@@ -67,13 +67,17 @@ interface TeacherFormProps {
   teacherId?: string;
   subjects?: Subject[];
   classes?: Class[];
+  isCreate?: boolean;
+  onClose?: () => void;
 }
 
 export default function TeacherForm({
   initialData = {},
   teacherId,
   subjects = [],
-  classes = []
+  classes = [],
+  isCreate,
+  onClose,
 }: TeacherFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -186,8 +190,8 @@ export default function TeacherForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value={TeacherType.CLASS}>Class Teacher</SelectItem>
-                    <SelectItem value={TeacherType.SUBJECT}>Subject Teacher</SelectItem>
+                    <SelectItem value="CLASS">Class Teacher</SelectItem>
+                    <SelectItem value="SUBJECT">Subject Teacher</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -234,7 +238,7 @@ export default function TeacherForm({
             )}
           />
 
-          {form.watch("teacherType") === TeacherType.SUBJECT && (
+          {form.watch("teacherType") === TeacherType.CLASS && (
             <FormField
               control={form.control}
               name="subjectIds"
@@ -260,7 +264,7 @@ export default function TeacherForm({
             />
           )}
 
-          {form.watch("teacherType") === TeacherType.CLASS && (
+          {form.watch("teacherType") === TeacherType.SUBJECT && (
             <FormField
               control={form.control}
               name="classIds"
