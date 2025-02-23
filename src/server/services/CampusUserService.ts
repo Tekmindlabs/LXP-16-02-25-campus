@@ -11,7 +11,7 @@ interface CampusRoleInfo {
 interface CampusRoleData {
   userId: string;
   campusId: string;
-  role: string;
+  roleId: string;
   permissions: string[];
 }
 
@@ -34,7 +34,7 @@ export class CampusUserService {
       const data: CampusRoleData = {
         userId,
         campusId,
-        role: role.toString(),
+        roleId: role.toString(),
         permissions: this.getDefaultPermissionsForRole(role).map(p => p.toString()),
       };
 
@@ -49,16 +49,16 @@ export class CampusUserService {
 
   async updateCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
     try {
-      await this.db.campusRole.update({
+      await this.db.campusRole.updateMany({
         where: {
-          userId_campusId: {
-            userId,
-            campusId,
-          },
+          AND: [
+            { userId },
+            { campusId }
+          ]
         },
         data: {
-          role,
-          permissions: this.getDefaultPermissionsForRole(role),
+          roleId: role.toString(),
+          permissions: this.getDefaultPermissionsForRole(role).map(p => p.toString()),
         },
       });
     } catch (error) {
@@ -71,27 +71,33 @@ export class CampusUserService {
   }
 
   async getUserRole(userId: string, campusId: string): Promise<CampusRoleType | null> {
-    const result = await this.db.campusRole.findUnique({
+    const result = await this.db.campusRole.findFirst({
       where: {
-        userId_campusId: {
-          userId,
-          campusId,
-        },
+        AND: [
+          { userId },
+          { campusId }
+        ]
       },
+      select: {
+        roleId: true,
+      }
     });
-    return result?.role ? (result.role as CampusRoleType) : null;
+    return result?.roleId ? (result.roleId as CampusRoleType) : null;
   }
 
   async hasPermission(userId: string, campusId: string, permission: CampusPermission): Promise<boolean> {
-    const result = await this.db.campusRole.findUnique({
+    const result = await this.db.campusRole.findFirst({
       where: {
-        userId_campusId: {
-          userId,
-          campusId,
-        },
+        AND: [
+          { userId },
+          { campusId }
+        ]
       },
+      select: {
+        permissions: true,
+      }
     });
-    return result?.permissions.includes(permission) ?? false;
+    return result?.permissions.includes(permission.toString()) ?? false;
   }
 
   async getUserCampusRoles(userId: string): Promise<CampusRoleInfo[]> {
@@ -100,14 +106,14 @@ export class CampusUserService {
         where: { userId },
         select: {
           campusId: true,
-          role: true,
+          roleId: true,
           permissions: true
         }
       });
       
       return roles.map(role => ({
         campusId: role.campusId,
-        role: role.role as CampusRoleType,
+        role: role.roleId as CampusRoleType,
         permissions: role.permissions.map(p => p as CampusPermission),
       }));
     } catch (error) {
