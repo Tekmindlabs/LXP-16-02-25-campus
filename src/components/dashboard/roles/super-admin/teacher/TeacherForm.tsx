@@ -1,12 +1,11 @@
-// /components/dashboard/roles/super-admin/teacher/TeacherForm.tsx
 'use client';
 
-import { api } from "@/utils/api"; // Use client-side TRPC
+import { api } from "@/utils/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useState } from "react";
-import { TeacherType } from "@prisma/client";
+import { TeacherType, Status } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -29,12 +28,32 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+// Type definitions
+interface Campus {
+  id: string;
+  name: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+}
+
+interface Class {
+  id: string;
+  name: string;
+}
+
+interface ApiError {
+  message: string;
+}
+
 // Form schema matching the backend expectations
 const teacherFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-  teacherType: z.enum(["CLASS", "SUBJECT"]),
+  teacherType: z.nativeEnum(TeacherType),
   specialization: z.string().optional(),
   campusIds: z.array(z.string()).min(1, "Select at least one campus"),
   subjectIds: z.array(z.string()).optional(),
@@ -43,36 +62,34 @@ const teacherFormSchema = z.object({
 
 type TeacherFormValues = z.infer<typeof teacherFormSchema>;
 
+interface TeacherFormProps {
+  initialData?: Partial<TeacherFormValues>;
+  teacherId?: string;
+  subjects?: Subject[];
+  classes?: Class[];
+}
+
 export default function TeacherForm({
-  initialData,
+  initialData = {},
   teacherId,
-  subjects,
-  classes
-}: {
-  initialData: any;
-  teacherId: string;
-  subjects: any[];
-  classes: any[];
-}) {
+  subjects = [],
+  classes = []
+}: TeacherFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // Get campuses for dropdown
-  const { data: campuses } = api.campus.getAll.useQuery();
-  
-  // Get subjects for dropdown
-  const { data: subjectsData } = api.subject.getAll.useQuery();
-  
-  // Get classes for dropdown
-  const { data: classesData } = api.class.getAll.useQuery();
+  // Get campuses data
+  const { data: campuses = [], isLoading: isLoadingCampuses } = api.campus.getAll.useQuery();
 
   // Create teacher mutation
-  const createTeacher = api.teacher.create.useMutation({
+  const createTeacher = api.teacher.createTeacher.useMutation({
     onSuccess: () => {
       toast.success("Teacher created successfully");
+      setLoading(false);
       router.push("/dashboard/teachers");
+      router.refresh();
     },
-    onError: (error) => {
+    onError: (error: ApiError) => {
       toast.error(error.message);
       setLoading(false);
     },
@@ -81,30 +98,39 @@ export default function TeacherForm({
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherFormSchema),
     defaultValues: {
-      teacherType: "SUBJECT",
-      campusIds: [],
-      subjectIds: [],
-      classIds: [],
-      ...initialData
+      name: initialData.name ?? "",
+      email: initialData.email ?? "",
+      phoneNumber: initialData.phoneNumber ?? "",
+      teacherType: initialData.teacherType ?? TeacherType.CLASS,
+      specialization: initialData.specialization ?? "",
+      campusIds: initialData.campusIds ?? [],
+      subjectIds: initialData.subjectIds ?? [],
+      classIds: initialData.classIds ?? [],
     },
   });
 
   const onSubmit = async (data: TeacherFormValues) => {
     setLoading(true);
-    createTeacher.mutate(data);
+    try {
+      await createTeacher.mutateAsync({
+        name: data.name,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        teacherType: data.teacherType,
+        specialization: data.specialization,
+        subjectIds: data.subjectIds,
+        classIds: data.classIds,
+      });
+    } catch (error) {
+      console.error("Failed to create teacher:", error);
+      setLoading(false);
+    }
   };
 
-  const watchTeacherType = form.watch("teacherType");
-
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold">Create New Teacher</h2>
-        <p className="text-muted-foreground">Add a new teacher to the system</p>
-      </div>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
             name="name"
@@ -112,7 +138,7 @@ export default function TeacherForm({
               <FormItem>
                 <FormLabel>Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} />
+                  <Input {...field} placeholder="John Doe" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -126,7 +152,7 @@ export default function TeacherForm({
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="john.doe@example.com" {...field} />
+                  <Input {...field} type="email" placeholder="john.doe@example.com" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -140,7 +166,7 @@ export default function TeacherForm({
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input placeholder="+1234567890" {...field} />
+                  <Input {...field} placeholder="+1234567890" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -160,8 +186,8 @@ export default function TeacherForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="CLASS">Class Teacher</SelectItem>
-                    <SelectItem value="SUBJECT">Subject Teacher</SelectItem>
+                    <SelectItem value={TeacherType.CLASS}>Class Teacher</SelectItem>
+                    <SelectItem value={TeacherType.SUBJECT}>Subject Teacher</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -176,11 +202,8 @@ export default function TeacherForm({
               <FormItem>
                 <FormLabel>Specialization</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Mathematics, Science" {...field} />
+                  <Input {...field} placeholder="e.g., Mathematics, Science" />
                 </FormControl>
-                <FormDescription>
-                  Area of expertise or specialization
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -193,27 +216,25 @@ export default function TeacherForm({
               <FormItem>
                 <FormLabel>Assigned Campuses</FormLabel>
                 <FormControl>
-                  <MultiSelect
-                    selected={field.value}
+                  <MultiSelect<string>
+                    value={field.value}
                     options={
-                      campuses?.map((campus) => ({
+                      campuses?.map((campus: Campus) => ({
                         label: campus.name,
                         value: campus.id,
                       })) ?? []
                     }
-                    onChange={(values) => field.onChange(values)}
+                    onChange={field.onChange}
                     placeholder="Select campuses"
+                    disabled={isLoadingCampuses}
                   />
                 </FormControl>
-                <FormDescription>
-                  Select the campuses where this teacher will work
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {watchTeacherType === "SUBJECT" && (
+          {form.watch("teacherType") === TeacherType.SUBJECT && (
             <FormField
               control={form.control}
               name="subjectIds"
@@ -221,15 +242,15 @@ export default function TeacherForm({
                 <FormItem>
                   <FormLabel>Assigned Subjects</FormLabel>
                   <FormControl>
-                    <MultiSelect
-                      selected={field.value ?? []}
+                    <MultiSelect<string>
+                      value={field.value ?? []}
                       options={
-                        subjectsData?.map((subject) => ({
+                        subjects?.map((subject: Subject) => ({
                           label: subject.name,
                           value: subject.id,
                         })) ?? []
                       }
-                      onChange={(values) => field.onChange(values)}
+                      onChange={field.onChange}
                       placeholder="Select subjects"
                     />
                   </FormControl>
@@ -239,7 +260,7 @@ export default function TeacherForm({
             />
           )}
 
-          {watchTeacherType === "CLASS" && (
+          {form.watch("teacherType") === TeacherType.CLASS && (
             <FormField
               control={form.control}
               name="classIds"
@@ -247,15 +268,15 @@ export default function TeacherForm({
                 <FormItem>
                   <FormLabel>Assigned Classes</FormLabel>
                   <FormControl>
-                    <MultiSelect
-                      selected={field.value ?? []}
+                    <MultiSelect<string>
+                      value={field.value ?? []}
                       options={
-                        classesData?.map((class_) => ({
+                        classes?.map((class_: Class) => ({
                           label: class_.name,
                           value: class_.id,
                         })) ?? []
                       }
-                      onChange={(values) => field.onChange(values)}
+                      onChange={field.onChange}
                       placeholder="Select classes"
                     />
                   </FormControl>
@@ -264,12 +285,12 @@ export default function TeacherForm({
               )}
             />
           )}
+        </div>
 
-          <Button type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Create Teacher"}
-          </Button>
-        </form>
-      </Form>
-    </div>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Create Teacher"}
+        </Button>
+      </form>
+    </Form>
   );
 }
