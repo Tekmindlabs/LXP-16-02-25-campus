@@ -74,72 +74,67 @@ export class CampusClassService {
           return;
         }
 
-        // Collect all class group IDs for the campus
         const existingClassGroups = await tx.campusClassGroup.findMany({
           where: { campusId }
         });
-        const existingIds = new Set(existingClassGroups.map(cg => cg.classGroupId));
+        const existingIds = new Set(existingClassGroups.map((cg: { classGroupId: string }) => cg.classGroupId));
 
-        // Process each program's class groups
         for (const program of programs) {
-          for (const classGroup of program.classGroups) {
-            try {
-              if (!existingIds.has(classGroup.id)) {
-                // Create new association if it doesn't exist
-                await tx.campusClassGroup.create({
-                  data: {
-                    campusId,
-                    classGroupId: classGroup.id,
-                    status: 'ACTIVE',
-                    inheritedFrom: program.id,
-                    inheritedAt: new Date(),
-                    settings: classGroup.settings,
-                    customSettings: null
-                  }
-                });
-              } else {
-                // Update existing association
-                await tx.campusClassGroup.update({
-                  where: {
-                    campusId_classGroupId: {
-                      campusId,
-                      classGroupId: classGroup.id
-                    }
-                  },
-                  data: {
-                    status: 'ACTIVE',
-                    inheritedFrom: program.id,
-                    inheritedAt: new Date(),
-                    settings: classGroup.settings
-                  }
-                });
+    for (const classGroup of program.classGroups) {
+      try {
+        if (!existingIds.has(classGroup.id)) {
+          await tx.campusClassGroup.create({
+            data: {
+              campusId,
+              classGroupId: classGroup.id,
+              status: 'ACTIVE',
+              inheritedFrom: program.id,
+              inheritedAt: new Date(),
+              settings: classGroup.settings || {},
+              customSettings: null
+            }
+          });
+        } else {
+          await tx.campusClassGroup.update({
+            where: {
+              campusId_classGroupId: {
+                campusId,
+                classGroupId: classGroup.id
               }
-            } catch (error) {
-              console.error(
-                `Error processing class group ${classGroup.id} for campus ${campusId}:`,
-                error
-              );
-              throw error;
+            },
+            data: {
+              status: 'ACTIVE',
+              inheritedFrom: program.id,
+              inheritedAt: new Date(),
+              settings: classGroup.settings || {}
             }
-          }
+          });
         }
+      } catch (error) {
+        console.error(
+          `Error processing class group ${classGroup.id} for campus ${campusId}:`,
+          error
+        );
+        throw error;
+      }
+    }
+  }
 
-        // Log the operation
-        await tx.auditLog.create({
-          data: {
-            userId,
-            campusId,
-            action: 'INHERIT_CLASS_GROUPS',
-            details: {
-              programCount: programs.length,
-              classGroupCount: programs.reduce(
-                (acc, p) => acc + p.classGroups.length, 
-                0
-              )
-            }
-          }
-        });
-      });
+  await tx.auditLog.create({
+    data: {
+      userId,
+      campusId,
+      action: 'INHERIT_CLASS_GROUPS',
+      details: {
+        programCount: programs.length,
+        classGroupCount: programs.reduce(
+          (acc, p) => acc + p.classGroups.length,
+          0
+        )
+      }
+    }
+  });
+});
 
     } catch (error) {
       console.error('Error in inheritClassGroupsFromPrograms:', error);
@@ -328,3 +323,8 @@ export class CampusClassService {
 		);
 	}
 }
+
+
+
+
+

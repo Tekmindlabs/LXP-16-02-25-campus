@@ -416,6 +416,28 @@ model ClassGroup {
   @@map("class_groups")
 }
 
+model CampusClassGroup {
+  id           String   @id @default(cuid())
+  campusId     String
+  classGroupId String
+  status       String
+  inheritedFrom String?
+  inheritedAt   DateTime
+  settings      Json?
+  customSettings Json?
+  
+  @@unique([campusId, classGroupId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  campusId  String
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+}
+
 model Subject {
   id                 String              @id @default(cuid())
   name               String
@@ -1268,6 +1290,8 @@ model RolePermission {
   @@unique([roleId, permissionId, campusId]) // Update unique constraint to include campusId
   @@map("role_permissions")
 }
+
+
 
 model CampusFeature {
   id          String   @id @default(cuid())
