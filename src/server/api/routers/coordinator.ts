@@ -62,6 +62,25 @@ export const coordinatorRouter = createTRPCRouter({
 		return coordinator;
 	  }),
 
+	getCoordinators: protectedProcedure
+	  .query(async ({ ctx }) => {
+		return ctx.prisma.user.findMany({
+		  where: {
+			userType: UserType.COORDINATOR,
+		  },
+		  include: {
+			coordinatorProfile: {
+			  include: {
+				programs: true,
+			  },
+			},
+		  },
+		  orderBy: {
+			name: 'asc',
+		  },
+		});
+	  }),
+
 	updateCoordinator: protectedProcedure
 		.input(z.object({
 			id: z.string(),

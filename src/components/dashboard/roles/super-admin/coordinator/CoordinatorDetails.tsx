@@ -113,8 +113,3 @@ export const CoordinatorDetails = ({ coordinatorId, onBack }: CoordinatorDetails
 		</div>
 	);
 };
-
-
-
-
-
