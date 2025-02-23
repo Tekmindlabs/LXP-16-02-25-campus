@@ -438,6 +438,7 @@ model CampusClassGroup {
   classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
 
   @@unique([campusId, classGroupId])
+  @@map("campus_class_groups")
 }
 
 model AuditLog {
@@ -450,6 +451,8 @@ model AuditLog {
   
   campus    Campus   @relation(fields: [campusId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
 }
 
 model Subject {
