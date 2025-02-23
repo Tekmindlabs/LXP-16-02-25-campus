@@ -10,7 +10,8 @@ export interface CampusContextType {
   setCurrentCampus: (campus: PrismaCampus | null) => void;
   programs: Program[];
   classGroups: ClassGroup[];
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
+  isRefreshing: boolean;
 }
 
 export interface RolePermission {
@@ -36,6 +37,7 @@ export enum CampusPermission {
   MANAGE_CAMPUS_ATTENDANCE = "campus:manage-attendance",
   VIEW_CAMPUS_ANALYTICS = "campus:view-analytics",
   VIEW_PROGRAMS = "campus:view-programs",
+  VIEW_CAMPUS_CLASSES = "campus:view-classes",
   VIEW_CLASS_GROUPS = "campus:view-class-groups"
 }
 

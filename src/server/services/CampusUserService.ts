@@ -24,7 +24,8 @@ export class CampusUserService {
     CampusPermission.MANAGE_CAMPUS_ATTENDANCE,
     CampusPermission.VIEW_CAMPUS_ANALYTICS,
     CampusPermission.VIEW_PROGRAMS,
-    CampusPermission.VIEW_CLASS_GROUPS
+    CampusPermission.VIEW_CLASS_GROUPS,
+    CampusPermission.VIEW_CAMPUS_CLASSES,
   ];
 
   constructor(private readonly db: PrismaClient) {}

@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from "@prisma/client";
-import { CampusPermission } from "../../types/enums";
+import { CampusPermission } from "../../types/campus";
 import { CampusUserService } from "./CampusUserService";
 
 interface CampusClass {
