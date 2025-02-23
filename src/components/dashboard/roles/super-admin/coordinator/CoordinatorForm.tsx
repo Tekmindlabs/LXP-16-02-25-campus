@@ -21,7 +21,7 @@ const formSchema = z.object({
   campusId: z.string()
     .optional()
     .superRefine((val, ctx) => {
-        const type = ctx.parent().data?.type;
+      const type = ctx.path.length > 0 ? ctx.path[0].data?.type : undefined;
       if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
