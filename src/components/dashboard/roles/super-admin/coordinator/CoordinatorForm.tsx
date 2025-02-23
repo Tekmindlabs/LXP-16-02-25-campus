@@ -29,7 +29,8 @@ const createFormSchema = (programs: Program[], campuses: Campus[]) => z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR'], {
-    required_error: "Coordinator type is required"
+    required_error: "Please select a coordinator type",
+    invalid_type_error: "Please select a valid coordinator type"
   }),
   programIds: z.array(z.string())
     .min(1, "At least one program must be selected")
@@ -193,7 +194,16 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
-
+  
+      if (!values.type) {
+        toast({
+          title: "Error",
+          description: "Please select a coordinator type",
+          variant: "destructive"
+        });
+        return;
+      }
+  
       const coordinatorData = {
         name: values.name,
         email: values.email,
@@ -203,7 +213,9 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
         responsibilities: values.responsibilities,
         status: values.status
       };
-
+  
+      console.log('Submitting coordinator data:', coordinatorData); // Add logging
+  
       if (selectedCoordinator) {
         await updateCoordinator.mutateAsync({
           id: selectedCoordinator.id,
@@ -257,27 +269,31 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
         />
 
         {/* Coordinator Type Field */}
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Coordinator Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
-                  <SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+<FormField
+  control={form.control}
+  name="type"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Coordinator Type</FormLabel>
+      <Select 
+        onValueChange={field.onChange} 
+        value={field.value}
+        required
+      >
+        <FormControl>
+          <SelectTrigger>
+            <SelectValue placeholder="Select coordinator type" />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+          <SelectItem value="PROGRAM_COORDINATOR">Program Coordinator</SelectItem>
+          <SelectItem value="CAMPUS_PROGRAM_COORDINATOR">Campus Program Coordinator</SelectItem>
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 
         {/* Campus Selection (Conditional) */}
         {form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' && (
