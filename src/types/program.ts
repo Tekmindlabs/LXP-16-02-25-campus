@@ -6,12 +6,26 @@ export interface Calendar {
 	name: string;
 }
 
+// in /src/types/program.ts
+
 export interface Coordinator {
 	id: string;
-	user: {
+	name: string;
+	email: string;
+	status: Status;
+	type: 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR';
+	coordinatorProfile: {
+	  programs: {
+		id: string;
 		name: string;
+	  }[];
+	  campus?: {
+		id: string;
+		name: string;
+	  };
+	  responsibilities: string[];
 	};
-}
+  }
 
 export type TermSystemType = 'SEMESTER' | 'TERM' | 'QUARTER';
 

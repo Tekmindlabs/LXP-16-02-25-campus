@@ -17,26 +17,51 @@ import { toast } from "@/hooks/use-toast";
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
-  type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR']),
-  programIds: z.array(z.string()).min(1, "At least one program must be selected"),
-  campusId: z.string()
-    .optional()
-    .superRefine((val, ctx) => {
-      // Get the type from the current validation context
-      const type = ctx.path[0] === 'campusId' ? 
-        (ctx as any)._parent?.data?.type : undefined;
-        
-      if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Campus selection is required for Campus Program Coordinator"
+  type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR'], {
+    required_error: "Coordinator type is required"
+  }),
+  programIds: z.array(z.string())
+    .min(1, "At least one program must be selected")
+    .superRefine((programIds, ctx) => {
+      const type = (ctx as any)._parent?.data?.type;
+      const campusId = (ctx as any)._parent?.data?.campusId;
+      
+      if (type === 'CAMPUS_PROGRAM_COORDINATOR' && campusId) {
+        const invalidPrograms = programIds.filter(id => {
+          const program = programs.find(p => p.id === id);
+          return !program?.campuses?.some(c => c.id === campusId);
         });
-        return false;
+        
+        if (invalidPrograms.length > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "All selected programs must belong to the selected campus"
+          });
+          return false;
+        }
       }
       return true;
     }),
-  responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"),
-  status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
+  campusId: z.string()
+    .optional()
+    .superRefine((val, ctx) => {
+      const type = (ctx as any)._parent?.data?.type;
+      if (type === 'CAMPUS_PROGRAM_COORDINATOR') {
+        if (!val) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Campus selection is required for Campus Program Coordinator"
+          });
+          return false;
+        }
+      }
+      return true;
+    }),
+  responsibilities: z.array(z.string())
+    .min(1, "At least one responsibility is required"),
+  status: z.nativeEnum(Status, {
+    required_error: "Status is required"
+  })
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -75,10 +100,10 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
     defaultValues: {
       name: selectedCoordinator?.name || "",
       email: selectedCoordinator?.email || "",
-      type: selectedCoordinator?.type || "PROGRAM_COORDINATOR",
+      type: selectedCoordinator?.type || undefined,
       programIds: selectedCoordinator?.coordinatorProfile.programs.map(p => p.id) || [],
-      campusId: selectedCoordinator?.coordinatorProfile.campus?.id,
-      responsibilities: [],
+      campusId: selectedCoordinator?.coordinatorProfile.campus?.id || undefined,
+      responsibilities: selectedCoordinator?.coordinatorProfile.responsibilities || [],
       status: selectedCoordinator?.status || Status.ACTIVE,
     },
   });
@@ -152,37 +177,31 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
   });
 
   const onSubmit = async (values: FormValues) => {
-    setIsSubmitting(true);
     try {
-      // Validate campus program coordinator requirements
-      if (values.type === 'CAMPUS_PROGRAM_COORDINATOR') {
-        if (!values.campusId) {
-          throw new Error('Campus selection is required for Campus Program Coordinator');
-        }
-        
-        // Validate selected programs belong to selected campus
-        const invalidPrograms = values.programIds.filter(programId => {
-          const program = programs.find(p => p.id === programId);
-          return !program?.campuses?.some(campus => campus.id === values.campusId);
-        });
-        
-        if (invalidPrograms.length > 0) {
-          throw new Error('Some selected programs do not belong to the selected campus');
-        }
-      }
+      setIsSubmitting(true);
+
+      const coordinatorData = {
+        name: values.name,
+        email: values.email,
+        type: values.type,
+        programIds: values.programIds,
+        campusId: values.type === 'CAMPUS_PROGRAM_COORDINATOR' ? values.campusId : undefined,
+        responsibilities: values.responsibilities,
+        status: values.status
+      };
 
       if (selectedCoordinator) {
         await updateCoordinator.mutateAsync({
           id: selectedCoordinator.id,
-          ...values,
+          ...coordinatorData
         });
       } else {
-        await createCoordinator.mutateAsync(values);
+        await createCoordinator.mutateAsync(coordinatorData);
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to save coordinator",
         variant: "destructive"
       });
     } finally {
@@ -300,24 +319,24 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
         />
 
         {/* Responsibilities Field */}
-        <FormField
-          control={form.control}
-          name="responsibilities"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Responsibilities</FormLabel>
-              <FormControl>
-                <MultiSelect
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={defaultResponsibilities}
-                  placeholder="Select responsibilities"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+
+<FormField
+  control={form.control}
+  name="responsibilities"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Responsibilities</FormLabel>
+      <FormControl>
+        <MultiSelect
+          options={defaultResponsibilities}
+          value={field.value}
+          onChange={field.onChange}
         />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 
         {/* Status Field */}
         <FormField
@@ -345,8 +364,12 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
           )}
         />
 
-        <Button type="submit" disabled={isSubmitting}>
-          {selectedCoordinator ? "Update" : "Create"} Coordinator
+        <Button 
+          type="submit" 
+          disabled={isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? 'Saving...' : selectedCoordinator ? 'Update Coordinator' : 'Create Coordinator'}
         </Button>
       </form>
     </Form>
