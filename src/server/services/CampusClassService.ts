@@ -83,17 +83,17 @@ export class CampusClassService {
     for (const classGroup of program.classGroups) {
       try {
         if (!existingIds.has(classGroup.id)) {
-          await tx.campusClassGroup.create({
-            data: {
-              campusId,
-              classGroupId: classGroup.id,
-              status: 'ACTIVE',
-              inheritedFrom: program.id,
-              inheritedAt: new Date(),
-              settings: classGroup.settings || {},
-              customSettings: null
-            }
-          });
+			await tx.campusClassGroup.create({
+				data: {
+				  campusId,
+				  classGroupId: classGroup.id,
+				  status: 'ACTIVE',
+				  inheritedFrom: program.id,
+				  inheritedAt: new Date(),
+				  settings: classGroup.settings || {},
+				  customSettings: Prisma.JsonNull // Use Prisma.JsonNull instead of null
+				}
+			  });
         } else {
           await tx.campusClassGroup.update({
             where: {

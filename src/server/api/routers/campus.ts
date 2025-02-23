@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { CampusPermission } from "@/types/campus";
+import { CampusPermission, CampusRoleType } from "@/types/campus";
 import { DefaultRoles } from "@/utils/permissions";
 import { CampusUserService } from "@/server/services/CampusUserService";
 import { CampusClassService } from "@/server/services/CampusClassService";
@@ -72,7 +72,52 @@ export const campusRouter = createTRPCRouter({
         });
       }
 
-      // ... rest of the create logic
+      try {
+        // Create the campus
+        const campus = await ctx.prisma.campus.create({
+          data: {
+            name: input.name,
+            code: input.code,
+            establishmentDate: input.establishmentDate,
+            type: input.type,
+            status: 'ACTIVE', // Default status
+            streetAddress: input.streetAddress,
+            city: input.city,
+            state: input.state,
+            country: input.country,
+            postalCode: input.postalCode,
+            primaryPhone: input.primaryPhone,
+            email: input.email,
+            emergencyContact: input.emergencyContact,
+            secondaryPhone: input.secondaryPhone,
+            gpsCoordinates: input.gpsCoordinates,
+            createdBy: ctx.session.user.id,
+          },
+          include: {
+            roles: true,
+            buildings: true,
+          },
+        });
+
+        // Create default campus role for the creator
+        await ctx.prisma.campusRole.create({
+          data: {
+            userId: ctx.session.user.id,
+            campusId: campus.id,
+            roleId: CampusRoleType.CAMPUS_ADMIN,
+            status: 'ACTIVE',
+          },
+        });
+
+        return campus;
+      } catch (error) {
+        console.error('Error creating campus:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create campus',
+          cause: error,
+        });
+      }
     }),
 
 
@@ -268,11 +313,12 @@ export const campusRouter = createTRPCRouter({
         }
 
         // Initialize services
-        const campusUserService = new CampusUserService(ctx.prisma);
+        const campusUserService = new CampusUserService(ctx.prisma as PrismaClient);
         const campusClassService = new CampusClassService(
-          ctx.prisma, 
-          campusUserService
-        );
+       ctx.prisma as PrismaClient, 
+       campusUserService
+
+);
 
         // Check permissions
         const hasPermission = await campusUserService.hasPermission(
@@ -292,12 +338,12 @@ export const campusRouter = createTRPCRouter({
 
         // Execute within transaction
         await ctx.prisma.$transaction(async (prisma) => {
-          const txCampusUserService = new CampusUserService(prisma);
+          const txCampusUserService = new CampusUserService(prisma as PrismaClient);
           const txCampusClassService = new CampusClassService(
-            prisma, 
+            prisma as PrismaClient, 
             txCampusUserService
           );
-
+        
           await txCampusClassService.inheritClassGroupsFromPrograms(
             ctx.session!.user.id,
             input.campusId
