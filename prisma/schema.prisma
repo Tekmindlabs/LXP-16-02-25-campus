@@ -54,6 +54,9 @@ model User {
   versionedRecords  VersionedRecord[]         @relation("UserVersions")
   CampusRole        CampusRole[]
 
+
+  auditLogs AuditLog[]
+  
   @@map("users")
 }
 
@@ -103,6 +106,9 @@ model Campus {
   // Audit fields
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  campusClassGroups CampusClassGroup[]
+  auditLogs AuditLog[]
 
   @@map("campuses")
 }
@@ -411,21 +417,26 @@ model ClassGroup {
   status             Status                         @default(ACTIVE)
   createdAt          DateTime                       @default(now())
   updatedAt          DateTime                       @updatedAt
+  settings Json?
+  campusClassGroups CampusClassGroup[]
 
   @@unique([name, programId])
   @@map("class_groups")
 }
 
 model CampusClassGroup {
-  id           String   @id @default(cuid())
-  campusId     String
-  classGroupId String
-  status       String
-  inheritedFrom String?
+  id            String   @id @default(cuid())
+  campusId      String
+  classGroupId  String
+  status        String
+  inheritedFrom String
   inheritedAt   DateTime
   settings      Json?
   customSettings Json?
   
+  campus      Campus     @relation(fields: [campusId], references: [id])
+  classGroup  ClassGroup @relation(fields: [classGroupId], references: [id])
+
   @@unique([campusId, classGroupId])
 }
 
@@ -436,6 +447,9 @@ model AuditLog {
   action    String
   details   Json?
   createdAt DateTime @default(now())
+  
+  campus    Campus   @relation(fields: [campusId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Subject {
