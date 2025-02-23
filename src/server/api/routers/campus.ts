@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { type Context, createTRPCRouter, protectedProcedure } from "../trpc";
-import { CampusPermission, CampusRoleType } from '@/types/campus';
-import { DefaultRoles } from '@/utils/permissions';
+import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { CampusClassService } from "../../services/CampusClassService";
-import { CampusUserService } from "../../services/CampusUserService";
+import { CampusPermission } from "@/types/campus";
+import { DefaultRoles } from "@/utils/permissions";
+import { CampusUserService } from "@/server/services/CampusUserService";
+import { CampusClassService } from "@/server/services/CampusClassService";
 
 const campusCreateInput = z.object({ 
   name: z.string(),
@@ -267,7 +267,10 @@ export const campusRouter = createTRPCRouter({
 
         // Initialize services
         const campusUserService = new CampusUserService(ctx.prisma);
-        const campusClassService = new CampusClassService(ctx.prisma, campusUserService);
+        const campusClassService = new CampusClassService(
+          ctx.prisma, 
+          campusUserService
+        );
 
         // Check permissions
         const hasPermission = await campusUserService.hasPermission(
@@ -286,9 +289,12 @@ export const campusRouter = createTRPCRouter({
         }
 
         // Execute within transaction
-        await ctx.prisma.$transaction(async (tx) => {
-          const txCampusUserService = new CampusUserService(tx);
-          const txCampusClassService = new CampusClassService(tx, txCampusUserService);
+        await ctx.prisma.$transaction(async (prisma) => {
+          const txCampusUserService = new CampusUserService(prisma);
+          const txCampusClassService = new CampusClassService(
+            prisma, 
+            txCampusUserService
+          );
 
           await txCampusClassService.inheritClassGroupsFromPrograms(
             ctx.session!.user.id,

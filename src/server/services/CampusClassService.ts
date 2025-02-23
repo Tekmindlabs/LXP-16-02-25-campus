@@ -1,6 +1,7 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma, ClassGroup } from "@prisma/client";
 import { CampusPermission } from "../../types/campus";
 import { CampusUserService } from "./CampusUserService";
+import { TRPCError } from "@trpc/server";
 
 interface CampusClass {
 	id: string;
@@ -13,11 +14,145 @@ interface CampusClass {
 	updatedAt: Date;
 }
 
+// In CampusClassService.ts
 export class CampusClassService {
-	constructor(
-		private readonly db: PrismaClient,
-		private readonly userService: CampusUserService
-	) {}
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly userService: CampusUserService
+  ) {}
+
+  async inheritClassGroupsFromPrograms(userId: string, campusId: string): Promise<void> {
+    // Check permissions
+    const hasPermission = await this.userService.hasPermission(
+      userId,
+      campusId,
+      CampusPermission.MANAGE_CAMPUS_CLASSES
+    );
+
+    if (!hasPermission) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'User does not have permission to manage class groups'
+      });
+    }
+
+    try {
+      // Verify campus exists
+      const campus = await this.db.campus.findUnique({
+        where: { id: campusId }
+      });
+
+      if (!campus) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Campus not found'
+        });
+      }
+
+      // Execute within transaction
+      await this.db.$transaction(async (tx) => {
+        // Get all programs associated with the campus
+        const programs = await tx.program.findMany({
+          where: {
+            campuses: {
+              some: {
+                id: campusId
+              }
+            }
+          },
+          include: {
+            classGroups: {
+              where: {
+                status: 'ACTIVE'
+              }
+            }
+          }
+        });
+
+        if (!programs.length) {
+          console.log(`No programs found for campus ${campusId}`);
+          return;
+        }
+
+        // Collect all class group IDs for the campus
+        const existingClassGroups = await tx.campusClassGroup.findMany({
+          where: { campusId }
+        });
+        const existingIds = new Set(existingClassGroups.map(cg => cg.classGroupId));
+
+        // Process each program's class groups
+        for (const program of programs) {
+          for (const classGroup of program.classGroups) {
+            try {
+              if (!existingIds.has(classGroup.id)) {
+                // Create new association if it doesn't exist
+                await tx.campusClassGroup.create({
+                  data: {
+                    campusId,
+                    classGroupId: classGroup.id,
+                    status: 'ACTIVE',
+                    inheritedFrom: program.id,
+                    inheritedAt: new Date(),
+                    settings: classGroup.settings,
+                    customSettings: null
+                  }
+                });
+              } else {
+                // Update existing association
+                await tx.campusClassGroup.update({
+                  where: {
+                    campusId_classGroupId: {
+                      campusId,
+                      classGroupId: classGroup.id
+                    }
+                  },
+                  data: {
+                    status: 'ACTIVE',
+                    inheritedFrom: program.id,
+                    inheritedAt: new Date(),
+                    settings: classGroup.settings
+                  }
+                });
+              }
+            } catch (error) {
+              console.error(
+                `Error processing class group ${classGroup.id} for campus ${campusId}:`,
+                error
+              );
+              throw error;
+            }
+          }
+        }
+
+        // Log the operation
+        await tx.auditLog.create({
+          data: {
+            userId,
+            campusId,
+            action: 'INHERIT_CLASS_GROUPS',
+            details: {
+              programCount: programs.length,
+              classGroupCount: programs.reduce(
+                (acc, p) => acc + p.classGroups.length, 
+                0
+              )
+            }
+          }
+        });
+      });
+
+    } catch (error) {
+      console.error('Error in inheritClassGroupsFromPrograms:', error);
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to inherit class groups',
+        cause: error
+      });
+    }
+  }
 
 	async createClass(userId: string, campusId: string, data: { name: string; classGroupId: string; capacity?: number }): Promise<CampusClass> {
 		const hasPermission = await this.userService.hasPermission(
