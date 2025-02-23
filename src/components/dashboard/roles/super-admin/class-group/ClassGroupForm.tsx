@@ -75,7 +75,7 @@ interface Props {
 
 
 export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSuccess }: Props) => {
-
+	// 1. Form hook
 	const form = useForm<FormData>({
 		defaultValues: {
 			name: selectedClassGroup?.name || "",
@@ -90,6 +90,11 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 		}
 	});
 
+	// 2. Context hooks
+	const utils = api.useContext();
+	const { toast } = useToast();
+
+	// 3. Query hooks
 	const { 
 		data: calendars, 
 		isLoading: calendarsLoading, 
@@ -102,30 +107,7 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 		error: campusesError 
 	} = api.campus.getAll.useQuery();
 
-	const loading = calendarsLoading || campusesLoading;
-	const error = calendarsError || campusesError;
-
-
-	if (loading) {
-		return <LoadingSpinner />;
-	}
-
-	if (error) {
-		return <Alert variant="destructive">{error.message || 'An error occurred while loading data'}</Alert>;
-	}
-
-
-	if (!campuses || !calendars) {
-		return <Alert variant="destructive">Required data is missing</Alert>;
-	}
-
-
-
-
-
-	const utils = api.useContext();
-	const { toast } = useToast();
-
+	// 4. Mutation hooks
 	const createMutation = api.classGroup.create.useMutation({
 		onSuccess: () => {
 			toast({
@@ -162,6 +144,11 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 		},
 	});
 
+	// 5. Derived state
+	const loading = calendarsLoading || campusesLoading;
+	const error = calendarsError || campusesError;
+
+	// 6. Event handlers
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		const formValues = form.getValues();
@@ -176,43 +163,44 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 			return;
 		}
 
+		const mutationData = {
+			name: formValues.name,
+			description: formValues.description,
+			programId: formValues.programId,
+			status: formValues.status,
+			calendar: {
+				id: selectedCalendar.id,
+				name: selectedCalendar.name,
+				startDate: selectedCalendar.startDate,
+				endDate: selectedCalendar.endDate
+			},
+			subjectIds: formValues.subjectIds
+		};
+
 		if (selectedClassGroup) {
 			updateMutation.mutate({
 				id: selectedClassGroup.id,
-				name: formValues.name,
-				description: formValues.description,
-				programId: formValues.programId,
-				status: formValues.status,
-				calendar: {
-					id: selectedCalendar.id,
-					name: selectedCalendar.name,
-					startDate: selectedCalendar.startDate,
-					endDate: selectedCalendar.endDate
-				},
-				subjectIds: formValues.subjectIds
+				...mutationData
 			});
-
 		} else {
-			createMutation.mutate({
-
-				name: formValues.name,
-				description: formValues.description,
-				programId: formValues.programId,
-				status: formValues.status,
-				calendar: {
-					id: selectedCalendar.id,
-					name: selectedCalendar.name,
-					startDate: selectedCalendar.startDate,
-					endDate: selectedCalendar.endDate
-				},
-				subjectIds: formValues.subjectIds
-			});
-
+			createMutation.mutate(mutationData);
 		}
 	};
 
+	// 7. Loading and error states
+	if (loading) {
+		return <LoadingSpinner />;
+	}
 
+	if (error) {
+		return <Alert variant="destructive">{error.message || 'An error occurred while loading data'}</Alert>;
+	}
 
+	if (!campuses || !calendars) {
+		return <Alert variant="destructive">Required data is missing</Alert>;
+	}
+
+	// 8. Render
 	return (
 		<Form {...form}>
 			<form onSubmit={handleSubmit} className="space-y-4">
@@ -290,5 +278,4 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 			</form>
 		</Form>
 	);
-
 };

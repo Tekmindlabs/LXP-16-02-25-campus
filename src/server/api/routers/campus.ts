@@ -3,6 +3,7 @@ import { type Context, createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusPermission, CampusRoleType } from '@/types/campus';
 import { DefaultRoles } from '@/utils/permissions';
 import { TRPCError } from "@trpc/server";
+import { CampusClassService } from "../../services/CampusClassService";
 import { CampusUserService } from "../../services/CampusUserService";
 
 const campusCreateInput = z.object({ 
@@ -237,6 +238,82 @@ export const campusRouter = createTRPCRouter({
           buildings: true,
         },
       });
+    }),
+
+  refreshClassGroups: protectedProcedure
+    .input(z.object({
+      campusId: z.string()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.session?.user?.id) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+        });
+      }
+
+      try {
+        // Verify campus exists
+        const campus = await ctx.prisma.campus.findUnique({
+          where: { id: input.campusId }
+        });
+
+        if (!campus) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Campus not found',
+          });
+        }
+
+        // Initialize services
+        const campusUserService = new CampusUserService(ctx.prisma);
+        const campusClassService = new CampusClassService(ctx.prisma, campusUserService);
+
+        // Check permissions
+        const hasPermission = await campusUserService.hasPermission(
+          ctx.session.user.id,
+          input.campusId,
+          CampusPermission.MANAGE_CAMPUS_CLASSES
+        );
+
+        const isSuperAdmin = ctx.session.user.roles?.includes(DefaultRoles.SUPER_ADMIN);
+
+        if (!hasPermission && !isSuperAdmin) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to refresh class groups',
+          });
+        }
+
+        // Execute within transaction
+        await ctx.prisma.$transaction(async (tx) => {
+          const txCampusUserService = new CampusUserService(tx);
+          const txCampusClassService = new CampusClassService(tx, txCampusUserService);
+
+          await txCampusClassService.inheritClassGroupsFromPrograms(
+            ctx.session!.user.id,
+            input.campusId
+          );
+        });
+
+        return {
+          success: true,
+          message: 'Class groups refreshed successfully',
+          timestamp: new Date().toISOString()
+        };
+
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
+        console.error('Error refreshing class groups:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to refresh class groups',
+          cause: error
+        });
+      }
     }),
 });
 

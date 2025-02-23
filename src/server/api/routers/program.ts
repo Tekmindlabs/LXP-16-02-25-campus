@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { CampusClassService } from "../../services/CampusClassService";
+import { CampusUserService } from "../../services/CampusUserService";
 import { TRPCError } from "@trpc/server";
 import { Prisma, Status, TermSystemType } from "@prisma/client";
 
@@ -67,6 +69,23 @@ const includeConfig = {
     }
   }
 };
+
+const programCreateInput = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  campusIds: z.array(z.string()),
+  status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).default(Status.ACTIVE),
+  // Add other program fields as needed
+});
+
+const programUpdateInput = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]).optional(),
+  campusIds: z.array(z.string()).optional(),
+  // Add other updateable fields as needed
+});
 
 export const programRouter = createTRPCRouter({
   getAll: protectedProcedure
