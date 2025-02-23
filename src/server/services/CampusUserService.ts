@@ -31,23 +31,11 @@ export class CampusUserService {
 
   async assignCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
     try {
-      let permissions: CampusPermission[];
-      
-      if (role === CampusRoleType.CAMPUS_PROGRAM_COORDINATOR) {
-        permissions = this.getDefaultPermissionsForCoordinator();
-      } else {
-        permissions = this.getDefaultPermissionsForRole(role);
-      }
-
-      const validPermissions = permissions.filter(
-        perm => this.allowedCampusPermissions.includes(perm)
-      );
-
       const data: CampusRoleData = {
         userId,
         campusId,
         role: role.toString(),
-        permissions: validPermissions.map(p => p.toString()),
+        permissions: this.getDefaultPermissionsForRole(role).map(p => p.toString()),
       };
 
       await this.db.campusRole.create({ data });

@@ -21,19 +21,19 @@ const formSchema = z.object({
   campusId: z.string()
     .optional()
     .superRefine((val, ctx) => {
-      const type = ctx.path.length > 0 ? ctx.path[0].data?.type : undefined;
+      // Get the type value from the parent object
+      const type = (ctx.parent as { type: string }).type;
+      
       if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Campus selection is required for Campus Program Coordinator"
-      });
-      return false;
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Campus selection is required for Campus Program Coordinator"
+        });
+        return false;
       }
       return true;
     }),
-
   responsibilities: z.array(z.string()).min(1, "At least one responsibility is required"),
-
   status: z.enum([Status.ACTIVE, Status.INACTIVE, Status.ARCHIVED]),
 });
 
