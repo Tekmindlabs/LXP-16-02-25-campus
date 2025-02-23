@@ -1,4 +1,4 @@
-import { ProgramAssignment } from '@/components/dashboard/coordinator/program-assignment';
+import { ProgramAssignment } from '@/components/dashboard/roles/super-admin/coordinator/program-assignment';
 
 export default function CoordinatorAssignmentsPage() {
 	return (

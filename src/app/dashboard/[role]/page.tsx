@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { Overview } from "@/components/dashboard/coordinator/overview";
-import { RecentActivities } from "@/components/dashboard/coordinator/recent-activities";
-import { PerformanceMetrics } from "@/components/dashboard/coordinator/performance-metrics";
+import { Overview } from "@/components/dashboard/roles/super-admin/coordinator/overview";
+import { RecentActivities } from "@/components/dashboard/roles/super-admin/coordinator/recent-activities";
+import { PerformanceMetrics } from "@/components/dashboard/roles/super-admin/coordinator/performance-metrics";
 
 export default async function DashboardPage({
   params,

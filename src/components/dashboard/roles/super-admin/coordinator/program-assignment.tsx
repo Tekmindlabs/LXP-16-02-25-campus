@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '../../ui/button';
-import { Card } from '../../ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
+import { Button } from '../../../../ui/button';
+import { Card } from '../../../../ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 interface Program {
