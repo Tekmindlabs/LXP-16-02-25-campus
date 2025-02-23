@@ -13,8 +13,19 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { api } from "@/utils/api";
 import { toast } from "@/hooks/use-toast";
 
+interface Program {
+  id: string;
+  name: string;
+  level: string;
+  campuses?: { id: string; name: string }[];
+}
 
-const formSchema = z.object({
+interface Campus {
+  id: string;
+  name: string;
+}
+
+const createFormSchema = (programs: Program[], campuses: Campus[]) => z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR'], {
@@ -54,6 +65,15 @@ const formSchema = z.object({
           });
           return false;
         }
+        
+        const campusExists = campuses.some(c => c.id === val);
+        if (!campusExists) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Selected campus is invalid"
+          });
+          return false;
+        }
       }
       return true;
     }),
@@ -63,8 +83,6 @@ const formSchema = z.object({
     required_error: "Status is required"
   })
 });
-
-type FormValues = z.infer<typeof formSchema>;
 
 interface CoordinatorFormProps {
   selectedCoordinator?: {
@@ -76,15 +94,11 @@ interface CoordinatorFormProps {
     coordinatorProfile: {
       programs: { id: string }[];
       campus?: { id: string; name: string };
+      responsibilities: string[];
     };
   };
-  programs: { 
-    id: string; 
-    name: string; 
-    level: string;
-    campuses?: { id: string; name: string }[];
-  }[];
-  campuses: { id: string; name: string }[];
+  programs: Program[];
+  campuses: Campus[];
   onSuccess: () => void;
 }
 
@@ -93,8 +107,9 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
   const [filteredPrograms, setFilteredPrograms] = useState(programs);
   
   const utils = api.useContext();
+  const formSchema = createFormSchema(programs, campuses);
+  type FormValues = z.infer<typeof formSchema>;
 
-  // Move form declaration before its usage
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -108,7 +123,6 @@ export const CoordinatorForm = ({ selectedCoordinator, programs, campuses, onSuc
     },
   });
 
-  // Now use form in useEffect
   useEffect(() => {
     if (form.watch('type') === 'CAMPUS_PROGRAM_COORDINATOR' && form.watch('campusId')) {
       const campusId = form.watch('campusId');
