@@ -5,6 +5,8 @@ import { CampusPermission } from "@/types/campus";
 import { DefaultRoles } from "@/utils/permissions";
 import { CampusUserService } from "@/server/services/CampusUserService";
 import { CampusClassService } from "@/server/services/CampusClassService";
+import type { Context } from "../trpc";
+import type { PrismaClient } from "@prisma/client";
 
 const campusCreateInput = z.object({ 
   name: z.string(),

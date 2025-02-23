@@ -100,7 +100,6 @@ model Campus {
   features  CampusFeature[]
   sync      CampusSync?
   classes   Class[]
-  rolePermissions RolePermission[] // Add relation to RolePermission
   programs  Program[]             @relation("ProgramCampuses")
   coordinators     CoordinatorProfile[]
   // Audit fields
@@ -109,6 +108,9 @@ model Campus {
 
   campusClassGroups CampusClassGroup[]
   auditLogs AuditLog[]
+
+  rolePermissions RolePermission[] // Add relation to RolePermission
+
 
   @@map("campuses")
 }
