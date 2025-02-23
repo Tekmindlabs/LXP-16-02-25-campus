@@ -106,8 +106,6 @@ model Campus {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBy String
-
   campusClassGroups CampusClassGroup[]
   auditLogs AuditLog[]
 
@@ -130,8 +128,6 @@ model CampusRole {
   campus Campus @relation(fields: [campusId], references: [id])
   role   Role   @relation(fields: [roleId], references: [id]) // Relation to Role model
 
-  status String
-  
   @@map("campus_roles")
 }
 
