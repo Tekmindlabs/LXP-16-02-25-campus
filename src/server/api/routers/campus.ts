@@ -91,7 +91,6 @@ export const campusRouter = createTRPCRouter({
             emergencyContact: input.emergencyContact,
             secondaryPhone: input.secondaryPhone,
             gpsCoordinates: input.gpsCoordinates,
-            createdBy: ctx.session.user.id,
           },
           include: {
             roles: true,
@@ -105,7 +104,6 @@ export const campusRouter = createTRPCRouter({
             userId: ctx.session.user.id,
             campusId: campus.id,
             roleId: CampusRoleType.CAMPUS_ADMIN,
-            status: 'ACTIVE',
           },
         });
 
