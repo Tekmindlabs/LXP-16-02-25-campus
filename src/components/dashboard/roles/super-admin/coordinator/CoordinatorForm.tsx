@@ -22,8 +22,10 @@ const formSchema = z.object({
   campusId: z.string()
     .optional()
     .superRefine((val, ctx) => {
-      // Access the type value from the parent object using ctx.parent
-      const type = (ctx.parent as { type?: string })?.type;
+      // Get the type from the current validation context
+      const type = ctx.path[0] === 'campusId' ? 
+        (ctx as any)._parent?.data?.type : undefined;
+        
       if (type === 'CAMPUS_PROGRAM_COORDINATOR' && !val) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
