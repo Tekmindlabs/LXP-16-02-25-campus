@@ -6,40 +6,59 @@ import { hasPermission } from "@/utils/permissions"; // Adjust the import path b
 
 export const coordinatorRouter = createTRPCRouter({
 	createCoordinator: protectedProcedure
-		.input(z.object({
-			name: z.string(),
-			email: z.string().email(),
-			programIds: z.array(z.string()).optional(),
-			responsibilities: z.array(z.string()).optional(),
-		}))
-		.mutation(async ({ ctx, input }) => {
-			const { programIds, responsibilities, ...userData } = input;
-
-			const coordinator = await ctx.prisma.user.create({
-				data: {
-					...userData,
-					userType: UserType.COORDINATOR,
-					coordinatorProfile: {
-						create: {
-							...(programIds && {
-								programs: {
-									connect: programIds.map(id => ({ id })),
-								},
-							}),
-						},
-					},
-				},
-				include: {
-					coordinatorProfile: {
-						include: {
-							programs: true,
-						},
-					},
-				},
-			});
-
-			return coordinator;
-		}),
+	  .input(z.object({
+		name: z.string(),
+		email: z.string().email(),
+		programIds: z.array(z.string()).optional(),
+		responsibilities: z.array(z.string()).optional(),
+		campusId: z.string().optional(), // Add this field
+		type: z.enum(['PROGRAM_COORDINATOR', 'CAMPUS_PROGRAM_COORDINATOR']),
+	  }))
+	  .mutation(async ({ ctx, input }) => {
+		const { programIds, responsibilities, campusId, type, ...userData } = input;
+  
+		// Create coordinator with campus association
+		const coordinator = await ctx.prisma.user.create({
+		  data: {
+			...userData,
+			userType: UserType.COORDINATOR,
+			coordinatorProfile: {
+			  create: {
+				...(programIds && {
+				  programs: {
+					connect: programIds.map(id => ({ id })),
+				  },
+				}),
+				...(campusId && {
+				  campus: {
+					connect: { id: campusId }
+				  }
+				}),
+			  },
+			},
+		  },
+		  include: {
+			coordinatorProfile: {
+			  include: {
+				programs: true,
+				campus: true,
+			  },
+			},
+		  },
+		});
+  
+		// If campus coordinator, assign campus role
+		if (type === 'CAMPUS_PROGRAM_COORDINATOR' && campusId) {
+		  const campusUserService = new CampusUserService(ctx.prisma);
+		  await campusUserService.assignCampusRole(
+			coordinator.id,
+			campusId,
+			CampusRoleType.CAMPUS_PROGRAM_COORDINATOR
+		  );
+		}
+  
+		return coordinator;
+	  }),
 
 	updateCoordinator: protectedProcedure
 		.input(z.object({

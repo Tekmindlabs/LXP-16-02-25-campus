@@ -5,6 +5,7 @@ import { Campus, Building, Floor, Wing, Room } from "../../types/campus";
 export class CampusService {
 	constructor(private readonly db: PrismaClient) {}
 
+	
 	async createCampus(data: CreateCampusInput): Promise<Campus> {
 		return this.db.campus.create({
 			data: {

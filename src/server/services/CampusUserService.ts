@@ -23,10 +23,27 @@ export class CampusUserService {
 
 	constructor(private readonly db: PrismaClient) {}
 
+	private getDefaultPermissionsForCoordinator(): CampusPermission[] {
+		return [
+			CampusPermission.MANAGE_CAMPUS_CLASSES,
+			CampusPermission.MANAGE_CAMPUS_TEACHERS,
+			CampusPermission.MANAGE_CAMPUS_STUDENTS,
+			CampusPermission.VIEW_CAMPUS_ANALYTICS,
+			CampusPermission.VIEW_PROGRAMS,
+		];
+	}
+
 	async assignCampusRole(userId: string, campusId: string, role: CampusRoleType): Promise<void> {
 		try {
-			const defaultPermissions = this.getDefaultPermissionsForRole(role);
-			const validPermissions = defaultPermissions.filter(
+			let permissions: CampusPermission[];
+			
+			if (role === CampusRoleType.CAMPUS_PROGRAM_COORDINATOR) {
+				permissions = this.getDefaultPermissionsForCoordinator();
+			} else {
+				permissions = this.getDefaultPermissionsForRole(role);
+			}
+
+			const validPermissions = permissions.filter(
 				perm => this.allowedCampusPermissions.includes(perm)
 			);
 
@@ -39,10 +56,9 @@ export class CampusUserService {
 				},
 			});
 		} catch (error) {
-			console.error('Error assigning campus role:', error);
 			throw new TRPCError({
-				code: "INTERNAL_SERVER_ERROR",
-				message: "Failed to assign campus role"
+				code: 'INTERNAL_SERVER_ERROR',
+				message: 'Failed to assign campus role',
 			});
 		}
 	}

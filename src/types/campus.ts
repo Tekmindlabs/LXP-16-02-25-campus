@@ -187,7 +187,7 @@ export interface CoordinatorProfile {
 	user: User;
 	campus: Campus;
 	status?: Status;
-	designation?: string;
+  type: 'PROGRAM_COORDINATOR' | 'CAMPUS_PROGRAM_COORDINATOR';
 	department?: string;
 	createdAt: Date;
 	updatedAt: Date;
