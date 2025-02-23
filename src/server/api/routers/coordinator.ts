@@ -3,6 +3,8 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { Status, UserType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { hasPermission } from "@/utils/permissions"; // Adjust the import path based on your project structure
+import { CampusUserService } from "../../services/CampusUserService"; 
+import { CampusRoleType } from "../../../types/campus"; 
 
 export const coordinatorRouter = createTRPCRouter({
 	createCoordinator: protectedProcedure

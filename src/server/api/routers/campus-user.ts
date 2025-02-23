@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { CampusUserService } from "../../services/CampusUserService";
-import { CampusPermission, CampusRole } from "../../../types/enums";
+import { CampusPermission, CampusRoleType } from "../../../types/campus"; // Updated import path
 import { TRPCError } from "@trpc/server";
 
 export const campusUserRouter = createTRPCRouter({
@@ -9,13 +9,13 @@ export const campusUserRouter = createTRPCRouter({
 	  .input(z.object({
 		userId: z.string(),
 		campusId: z.string(),
-		role: z.nativeEnum(CampusRole)
+		role: z.nativeEnum(CampusRoleType)
 	  }))
 	  .mutation(async ({ ctx, input }) => {
 		const campusUserService = new CampusUserService(ctx.prisma);
 		
 		// Add specific validation for coordinator roles
-		if (input.role === CampusRole.CAMPUS_PROGRAM_COORDINATOR) {
+		if (input.role === CampusRoleType.CAMPUS_PROGRAM_COORDINATOR) {
 		  // Verify coordinator exists
 		  const coordinator = await ctx.prisma.coordinatorProfile.findFirst({
 			where: { userId: input.userId }
@@ -28,53 +28,51 @@ export const campusUserRouter = createTRPCRouter({
 			});
 		  }
 		}
-  
+
 		await campusUserService.assignCampusRole(
 		  input.userId,
 		  input.campusId,
 		  input.role
 		);
-  
+
 		return { success: true };
 	  }),
 
 	updateRole: protectedProcedure
-		.input(z.object({
-			userId: z.string(),
-			campusId: z.string(),
-			role: z.nativeEnum(CampusRole)
-		}))
-		.mutation(async ({ ctx, input }) => {
-			const campusUserService = new CampusUserService(ctx.prisma);
-			
-			const hasPermission = await campusUserService.hasPermission(
-				ctx.session.user.id,
-				input.campusId,
-				CampusPermission.MANAGE_CAMPUS_USERS
-			);
+	  .input(z.object({
+		userId: z.string(),
+		campusId: z.string(),
+		role: z.nativeEnum(CampusRoleType)
+	  }))
+	  .mutation(async ({ ctx, input }) => {
+		if (!ctx.session?.user) {
+		  throw new TRPCError({
+			code: "UNAUTHORIZED",
+			message: "Not authenticated"
+		  });
+		}
 
-			if (!hasPermission) {
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: "Insufficient permissions"
-				});
-			}
+		const campusUserService = new CampusUserService(ctx.prisma);
+		
+		const hasPermission = await campusUserService.hasPermission(
+		  ctx.session.user.id,
+		  input.campusId,
+		  CampusPermission.MANAGE_CAMPUS
+		);
 
-			await campusUserService.updateCampusRole(
-				input.userId,
-				input.campusId,
-				input.role
-			);
+		if (!hasPermission) {
+		  throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Insufficient permissions"
+		  });
+		}
 
-			return { success: true };
-		}),
+		await campusUserService.updateCampusRole(
+		  input.userId,
+		  input.campusId,
+		  input.role
+		);
 
-	getUserRoles: protectedProcedure
-		.input(z.object({
-			userId: z.string()
-		}))
-		.query(async ({ ctx, input }) => {
-			const campusUserService = new CampusUserService(ctx.prisma);
-			return campusUserService.getUserCampusRoles(input.userId);
-		})
+		return { success: true };
+	  }),
 });
