@@ -5,28 +5,65 @@ import { api } from '@/utils/api';
 import TeacherForm from '@/components/dashboard/roles/super-admin/teacher/TeacherForm';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export default function EditTeacherPage() {
   const params = useParams();
   const router = useRouter();
   const teacherId = params.id as string;
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch teacher data
-  const { data: teacher, isLoading: isLoadingTeacher } = api.teacher.getById.useQuery(teacherId);
-
-  // Fetch subjects
-  const { data: subjects = [], isLoading: isLoadingSubjects } = api.subject.searchSubjects.useQuery({
-    status: 'ACTIVE'
+  // Fetch teacher data with error handling
+  const { 
+    data: teacher, 
+    isLoading: isLoadingTeacher,
+    error: teacherError 
+  } = api.teacher.getById.useQuery(teacherId, {
+    retry: false,
+    onError: (error) => {
+      setError(error.message);
+    }
   });
 
-  // Fetch classes
-  const { data: classes = [], isLoading: isLoadingClasses } = api.class.searchClasses.useQuery({
-    status: 'ACTIVE'
+  // Fetch subjects with proper parameters
+  const { 
+    data: subjects = [], 
+    isLoading: isLoadingSubjects 
+  } = api.subject.searchSubjects.useQuery({
+    status: 'ACTIVE' as const,
+    search: undefined,
+    classGroupIds: undefined,
+    teacherIds: undefined
+  }, {
+    retry: false,
+    onError: (error) => {
+      setError(error.message);
+    }
+  });
+
+  // Fetch classes with proper parameters
+  const { 
+    data: classes = [], 
+    isLoading: isLoadingClasses 
+  } = api.class.searchClasses.useQuery({
+    status: 'ACTIVE' as const,
+    search: undefined,
+    campusId: undefined,
+    classGroupId: undefined
+  }, {
+    retry: false,
+    onError: (error) => {
+      setError(error.message);
+    }
   });
 
   const handleCancel = () => {
     router.back();
   };
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
 
   if (isLoadingTeacher || isLoadingSubjects || isLoadingClasses) {
     return <div>Loading...</div>;
@@ -37,13 +74,14 @@ export default function EditTeacherPage() {
   }
 
   const initialData = {
-    name: teacher.name,
-    email: teacher.email,
+    name: teacher.name ?? '',
+    email: teacher.email ?? '',
     phoneNumber: teacher.phoneNumber || '',
     teacherType: teacher.teacherProfile?.teacherType,
     specialization: teacher.teacherProfile?.specialization || '',
-    subjectIds: teacher.teacherProfile?.subjects.map(s => s.subject.id) || [],
-    classIds: teacher.teacherProfile?.classes.map(c => c.class.id) || [],
+    subjectIds: teacher.teacherProfile?.subjects?.map(s => s.subject.id) || [],
+    classIds: teacher.teacherProfile?.classes?.map(c => c.class.id) || [],
+    campusIds: [] // Add if required
   };
 
   return (
