@@ -133,13 +133,13 @@ export const teacherRouter = createTRPCRouter({
 
 			const teacherProfile = await ctx.prisma.teacherProfile.findUnique({
 				where: { userId: id },
-				include: { user: true },
 			});
 
 			if (!teacherProfile) {
 				throw new Error("Teacher profile not found");
 			}
 
+			// Update teacher type if provided
 			if (teacherType) {
 				await ctx.prisma.teacherProfile.update({
 					where: { id: teacherProfile.id },
@@ -148,7 +148,6 @@ export const teacherRouter = createTRPCRouter({
 					},
 				});
 			}
-
 
 			// Handle subject assignments
 			if (subjectIds.length > 0) {
@@ -193,52 +192,38 @@ export const teacherRouter = createTRPCRouter({
 				},
 			};
 
-			return ctx.prisma.user.update({
+			const updatedTeacher = await ctx.prisma.user.update({
 				where: { id },
 				data: userUpdateData,
 				include: {
 					teacherProfile: {
 						include: {
-							subjects: { include: { subject: true } },
+							subjects: {
+								include: {
+									subject: true
+								}
+							},
 							classes: {
 								include: {
 									class: {
 										include: {
 											classGroup: true,
-											timetables: {
-												include: {
-													periods: {
-														include: {
-															subject: true,
-															classroom: true,
-															teacher: {
-																include: {
-																	user: true
-																}
-															}
-														}
-													}
-												}
-											},
-											students: {
-												include: {
-													user: true
-												}
-											},
+											students: true,
 											teachers: {
 												include: {
-													user: true
+													teacher: true
 												}
 											}
-										},
-									},
-								},
-							},
-							campus: true,
-						},
-					},
-				},
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			});
+
+			return updatedTeacher;
 		}),
 
 	deleteTeacher: protectedProcedure
@@ -273,11 +258,7 @@ export const teacherRouter = createTRPCRouter({
 											students: true,
 											teachers: {
 												include: {
-													teacher: {
-														include: {
-															user: true
-														}
-													}
+													teacher: true
 												}
 											},
 											timetables: {
@@ -286,11 +267,7 @@ export const teacherRouter = createTRPCRouter({
 														include: {
 															subject: true,
 															classroom: true,
-															teacher: {
-																include: {
-																	user: true
-																}
-															}
+															teacher: true
 														}
 													}
 												}
@@ -314,24 +291,32 @@ export const teacherRouter = createTRPCRouter({
 	getTeacherClasses: protectedProcedure
 		.input(z.string())
 		.query(async ({ ctx, input }) => {
-			const teacherClasses = await ctx.prisma.teacherClass.findMany({
+			const teacherProfile = await ctx.prisma.teacherProfile.findFirst({
 				where: {
-					teacherId: input,
-					status: Status.ACTIVE,
+					userId: input,
 				},
 				include: {
-					class: {
+					classes: {
+						where: {
+							status: Status.ACTIVE,
+						},
 						include: {
-							classGroup: true,
-							timetables: {
+							class: {
 								include: {
-									periods: {
+									classGroup: true,
+									students: true,
+									teachers: {
 										include: {
-											subject: true,
-											classroom: true,
-											teacher: {
+											teacher: true
+										}
+									},
+									timetables: {
+										include: {
+											periods: {
 												include: {
-													user: true
+													subject: true,
+													classroom: true,
+													teacher: true
 												}
 											}
 										}
@@ -343,37 +328,11 @@ export const teacherRouter = createTRPCRouter({
 				}
 			});
 
-			if (!teacherClasses.length) {
-				throw new Error("No classes found for this teacher");
+			if (!teacherProfile) {
+				throw new Error("Teacher profile not found");
 			}
 
-			// Get the class details for each teacher class
-			const classDetailsPromises = teacherClasses.map(async (tc) => {
-				const classData = await ctx.prisma.class.findUnique({
-					where: { id: tc.classId },
-					include: {
-						students: true,
-						teachers: {
-							include: {
-								teacher: {
-									include: {
-										user: true
-									}
-								}
-							}
-						},
-						classGroup: true
-					}
-				});
-
-				return {
-					...tc,
-					classDetails: classData,
-					isClassTeacher: tc.isClassTeacher
-				};
-			});
-
-			return Promise.all(classDetailsPromises);
+			return teacherProfile.classes;
 		}),
 
 	assignClasses: protectedProcedure
@@ -467,11 +426,10 @@ export const teacherRouter = createTRPCRouter({
 										},
 									},
 								},
-							},
-							campus: true,
-						},
-					},
-				},
+							}
+						}
+					}
+				}
 			});
 		}),
 
@@ -480,48 +438,57 @@ export const teacherRouter = createTRPCRouter({
 			z.object({
 				teacherId: z.string(),
 				classIds: z.array(z.string()),
-				isClassTeacher: z.boolean(),
+				isClassTeacher: z.boolean().optional(),
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const { teacherId, classIds, isClassTeacher } = input;
+			const { teacherId, classIds, isClassTeacher = false } = input;
+
+			const teacherProfile = await ctx.prisma.teacherProfile.findUnique({
+				where: { userId: teacherId },
+			});
+
+			if (!teacherProfile) {
+				throw new Error("Teacher profile not found");
+			}
 
 			const existingAssignments = await ctx.prisma.teacherClass.findMany({
 				where: {
-					teacherId,
-					classId: { in: classIds },
+					teacherId: teacherProfile.id,
+					classId: {
+						in: classIds,
+					},
 				},
 			});
 
-			const existingClassIds = existingAssignments.map((a) => a.classId);
-			const newClassIds = classIds.filter((id) => !existingClassIds.includes(id));
+			const existingClassIds = existingAssignments.map(tc => tc.classId);
+			const newClassIds = classIds.filter(id => !existingClassIds.includes(id));
 
-			if (newClassIds.length > 0) {
-				await ctx.prisma.teacherClass.createMany({
-					data: newClassIds.map((classId) => ({
-						teacherId,
-						classId,
-						isClassTeacher,
-						status: Status.ACTIVE,
-					})),
-				});
+			if (newClassIds.length === 0) {
+				return { message: "No new classes to assign" };
 			}
 
-			const updatedAssignments = await ctx.prisma.teacherClass.findMany({
-				where: {
-					teacherId,
-					classId: { in: classIds },
-				},
+			await ctx.prisma.teacherClass.createMany({
+				data: newClassIds.map(classId => ({
+					teacherId: teacherProfile.id,
+					classId,
+					isClassTeacher,
+					status: Status.ACTIVE,
+				})),
+			});
+
+			const updatedTeacher = await ctx.prisma.teacherProfile.findUnique({
+				where: { id: teacherProfile.id },
 				include: {
-					class: {
+					classes: {
 						include: {
-							classGroup: true,
-							students: true,
-							teachers: {
+							class: {
 								include: {
-									teacher: {
+									classGroup: true,
+									students: true,
+									teachers: {
 										include: {
-											user: true
+											teacher: true
 										}
 									}
 								}
@@ -531,58 +498,62 @@ export const teacherRouter = createTRPCRouter({
 				}
 			});
 
-			return updatedAssignments;
+			return {
+				message: `Successfully assigned ${newClassIds.length} new classes to teacher`,
+				teacher: updatedTeacher
+			};
 		}),
 
 	searchTeachers: protectedProcedure
 		.input(z.object({
-			classIds: z.array(z.string()).optional(),
-			subjectIds: z.array(z.string()).optional(),
-			query: z.string().optional(),
+			query: z.string(),
 		}))
 		.query(async ({ ctx, input }) => {
-			const { classIds, subjectIds, query } = input;
-
-			const teachers = await ctx.prisma.teacherProfile.findMany({
+			const teachers = await ctx.prisma.user.findMany({
 				where: {
-					AND: [
-						classIds ? { 
-							classes: {
-								some: { classId: { in: classIds } }
-							}
-						} : {},
-						subjectIds ? {
-							subjects: {
-								some: { subjectId: { in: subjectIds } }
-							}
-						} : {},
-						query ? {
-							user: {
-								OR: [
-									{ name: { contains: query, mode: 'insensitive' } },
-									{ email: { contains: query, mode: 'insensitive' } },
-								],
+					OR: [
+						{
+							name: {
+								contains: input.query,
+								mode: 'insensitive',
 							},
-						} : {},
+						},
+						{
+							email: {
+								contains: input.query,
+								mode: 'insensitive',
+							},
+						},
 					],
+					userType: UserType.TEACHER,
+					status: Status.ACTIVE,
 				},
 				include: {
-					user: true,
-					subjects: {
+					teacherProfile: {
 						include: {
-							subject: true
-						}
-					},
-					classes: {
-						include: {
-							class: {
+							subjects: {
 								include: {
-									classGroup: true
+									subject: true
 								}
+							},
+							classes: {
+								include: {
+									class: {
+										include: {
+											classGroup: true,
+											students: true,
+											teachers: {
+												include: {
+													teacher: true
+												}
+											}
+										},
+									},
+								},
 							}
 						}
 					}
-				},
+				}
 			});
 
 			return teachers;
