@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TeacherForm } from "@/components/dashboard/roles/super-admin/teacher/TeacherForm";
+import TeacherForm from "@/components/dashboard/roles/super-admin/teacher/TeacherForm";
 import { api } from "@/trpc/server"; // Use server-side TRPC client
 import { TeacherProfile } from "@/types/teacher";
 import { Status } from "@/types/enums";
