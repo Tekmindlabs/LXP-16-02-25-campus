@@ -1,61 +1,53 @@
 'use client';
 
-import { useParams } from 'next/navigation';
 import { api } from '@/utils/api';
 import TeacherForm from '@/components/dashboard/roles/super-admin/teacher/TeacherForm';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export default function EditTeacherPage() {
-  const params = useParams();
+export default function EditTeacherPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const teacherId = params.id as string;
   const [error, setError] = useState<string | null>(null);
+  const teacherId = params.id;
 
-  // Fetch teacher data with error handling
+  // Fetch teacher data
   const { 
     data: teacher, 
-    isLoading: isLoadingTeacher,
-    error: teacherError 
-  } = api.teacher.getById.useQuery(teacherId, {
-    retry: false,
-    onError: (error) => {
-      setError(error.message);
+    isLoading: isLoadingTeacher 
+  } = api.teacher.getById.useQuery(
+    teacherId,
+    {
+      retry: 1,
+      enabled: !!teacherId
     }
-  });
+  );
 
-  // Fetch subjects with proper parameters
+  // Fetch subjects
   const { 
     data: subjects = [], 
     isLoading: isLoadingSubjects 
-  } = api.subject.searchSubjects.useQuery({
-    status: 'ACTIVE' as const,
-    search: undefined,
-    classGroupIds: undefined,
-    teacherIds: undefined
-  }, {
-    retry: false,
-    onError: (error) => {
-      setError(error.message);
+  } = api.subject.searchSubjects.useQuery(
+    {
+      status: 'ACTIVE'
+    },
+    {
+      retry: 1
     }
-  });
+  );
 
-  // Fetch classes with proper parameters
+  // Fetch classes
   const { 
     data: classes = [], 
     isLoading: isLoadingClasses 
-  } = api.class.searchClasses.useQuery({
-    status: 'ACTIVE' as const,
-    search: undefined,
-    campusId: undefined,
-    classGroupId: undefined
-  }, {
-    retry: false,
-    onError: (error) => {
-      setError(error.message);
+  } = api.class.searchClasses.useQuery(
+    {
+      status: 'ACTIVE'
+    },
+    {
+      retry: 1
     }
-  });
+  );
 
   const handleCancel = () => {
     router.back();
@@ -74,14 +66,14 @@ export default function EditTeacherPage() {
   }
 
   const initialData = {
-    name: teacher.name ?? '',
-    email: teacher.email ?? '',
+    name: teacher.name,
+    email: teacher.email,
     phoneNumber: teacher.phoneNumber || '',
     teacherType: teacher.teacherProfile?.teacherType,
     specialization: teacher.teacherProfile?.specialization || '',
     subjectIds: teacher.teacherProfile?.subjects?.map(s => s.subject.id) || [],
     classIds: teacher.teacherProfile?.classes?.map(c => c.class.id) || [],
-    campusIds: [] // Add if required
+    campusIds: [] // Add campus IDs if required by your form
   };
 
   return (
