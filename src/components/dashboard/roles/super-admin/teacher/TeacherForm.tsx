@@ -85,6 +85,12 @@ export default function TeacherForm({
   // Get campuses data
   const { data: campuses = [], isLoading: isLoadingCampuses } = api.campus.getAll.useQuery();
 
+  // Get teacher data if editing
+  const { data: teacherData, isLoading: isLoadingTeacher } = api.teacher.getTeacher.useQuery(
+    { id: teacherId! },
+    { enabled: !!teacherId }
+  );
+
   // Create teacher mutation
   const createTeacher = api.teacher.createTeacher.useMutation({
     onSuccess: () => {
@@ -98,6 +104,36 @@ export default function TeacherForm({
       setLoading(false);
     },
   });
+
+  // Update teacher mutation
+  const updateTeacher = api.teacher.updateTeacher.useMutation({
+    onSuccess: () => {
+      toast.success("Teacher updated successfully");
+      setLoading(false);
+      router.push("/dashboard/teachers");
+      router.refresh();
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message);
+      setLoading(false);
+    },
+  });
+
+  // Set form default values when teacher data is loaded
+  useEffect(() => {
+    if (teacherData) {
+      form.reset({
+        name: teacherData.name,
+        email: teacherData.email,
+        phoneNumber: teacherData.phoneNumber,
+        teacherType: teacherData.teacherType,
+        specialization: teacherData.specialization ?? "",
+        campusIds: teacherData.campuses?.map(c => c.id) ?? [],
+        subjectIds: teacherData.subjects?.map(s => s.id) ?? [],
+        classIds: teacherData.classes?.map(c => c.id) ?? [],
+      });
+    }
+  }, [teacherData, form]);
 
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(teacherFormSchema),
@@ -116,20 +152,45 @@ export default function TeacherForm({
   const onSubmit = async (data: TeacherFormValues) => {
     setLoading(true);
     try {
-      await createTeacher.mutateAsync({
-        name: data.name,
-        email: data.email,
-        phoneNumber: data.phoneNumber,
-        teacherType: data.teacherType,
-        specialization: data.specialization,
-        subjectIds: data.subjectIds,
-        classIds: data.classIds,
-      });
+      if (teacherId) {
+        await updateTeacher.mutateAsync({
+          id: teacherId,
+          name: data.name,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          teacherType: data.teacherType,
+          specialization: data.specialization,
+          subjectIds: data.subjectIds,
+          classIds: data.classIds,
+          campusIds: data.campusIds,
+        });
+      } else {
+        await createTeacher.mutateAsync({
+          name: data.name,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+          teacherType: data.teacherType,
+          specialization: data.specialization,
+          subjectIds: data.subjectIds,
+          classIds: data.classIds,
+          campusIds: data.campusIds,
+        });
+      }
     } catch (error) {
-      console.error("Failed to create teacher:", error);
+      console.error(teacherId ? "Failed to update teacher:" : "Failed to create teacher:", error);
       setLoading(false);
     }
   };
+
+  // Show loading state while fetching teacher data
+  if (teacherId && isLoadingTeacher) {
+    return <div>Loading teacher data...</div>;
+  }
+
+  // Show error if teacher data failed to load
+  if (teacherId && !teacherData && !isLoadingTeacher) {
+    return <div>Error loading teacher data. Please try again later.</div>;
+  }
 
   return (
     <Form {...form}>
@@ -292,7 +353,7 @@ export default function TeacherForm({
         </div>
 
         <Button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create Teacher"}
+          {loading ? (teacherId ? "Updating..." : "Creating...") : teacherId ? "Update Teacher" : "Create Teacher"}
         </Button>
       </form>
     </Form>

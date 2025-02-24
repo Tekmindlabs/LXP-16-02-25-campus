@@ -90,6 +90,9 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 		}
 	});
 
+	// Watch form values for reactive updates
+	const watchedValues = form.watch();
+
 	// 2. Context hooks
 	const utils = api.useContext();
 	const { toast } = useToast();
@@ -224,7 +227,7 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 				<div>
 					<Label htmlFor="program">Program</Label>
 					<Select
-						value={form.getValues("programId")}
+						value={watchedValues.programId}
 						onValueChange={(value) => form.setValue('programId', value)}
 					>
 						<SelectTrigger>
@@ -243,7 +246,7 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 				<div>
 					<Label htmlFor="calendar">Calendar</Label>
 					<Select
-						value={form.getValues("calendar.id")}
+						value={watchedValues.calendar.id}
 						onValueChange={(value) => form.setValue('calendar.id', value)}
 					>
 						<SelectTrigger>
@@ -266,7 +269,7 @@ export const ClassGroupForm = ({ selectedClassGroup, programs, subjects, onSucce
 							label: `${subject.name} (${subject.code})`,
 							value: subject.id,
 						})) || []}
-						value={form.getValues("subjectIds")}
+						value={watchedValues.subjectIds}
 						onChange={(values) => form.setValue("subjectIds", values)}
 						placeholder="Select subjects"
 					/>
