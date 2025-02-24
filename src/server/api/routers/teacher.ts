@@ -498,54 +498,46 @@ export const teacherRouter = createTRPCRouter({
 
 	searchTeachers: protectedProcedure
 		.input(z.object({
-			query: z.string(),
+			search: z.string().optional(),
+			status: z.nativeEnum(Status).optional(),
 		}))
 		.query(async ({ ctx, input }) => {
+			const { search, status } = input;
+
 			const teachers = await ctx.prisma.user.findMany({
 				where: {
-					OR: [
-						{
-							name: {
-								contains: input.query,
-								mode: 'insensitive',
-							},
-						},
-						{
-							email: {
-								contains: input.query,
-								mode: 'insensitive',
-							},
-						},
-					],
 					userType: UserType.TEACHER,
-					status: Status.ACTIVE,
+					...(status && { status }),
+					...(search && {
+						OR: [
+							{ name: { contains: search, mode: 'insensitive' } },
+							{ email: { contains: search, mode: 'insensitive' } },
+						],
+					}),
 				},
 				include: {
 					teacherProfile: {
 						include: {
 							subjects: {
 								include: {
-									subject: true
-								}
+									subject: true,
+								},
 							},
 							classes: {
 								include: {
 									class: {
 										include: {
 											classGroup: true,
-											students: true,
-											teachers: {
-												include: {
-													teacher: true
-												}
-											}
 										},
 									},
 								},
-							}
-						}
-					}
-				}
+							},
+						},
+					},
+				},
+				orderBy: {
+					name: 'asc',
+				},
 			});
 
 			return teachers;
@@ -694,6 +686,79 @@ export const teacherRouter = createTRPCRouter({
 				success: results.length > 0,
 				teachersCreated: results.length,
 				errors: errors.length > 0 ? errors : undefined,
+			};
+		}),
+
+	getTeacherAnalytics: protectedProcedure
+		.input(z.object({
+			teacherId: z.string(),
+		}))
+		.query(async ({ ctx, input }) => {
+			const { teacherId } = input;
+
+			const teacherProfile = await ctx.prisma.teacherProfile.findFirst({
+				where: { userId: teacherId },
+				include: {
+					subjects: {
+						include: {
+							subject: true,
+						},
+					},
+					classes: {
+						include: {
+							class: {
+								include: {
+									timetables: {
+										include: {
+											periods: {
+												where: {
+													teacherId: teacherId,
+												},
+												include: {
+													subject: true,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			});
+
+			if (!teacherProfile) {
+				return {
+					subjects: [],
+					totalHoursPerWeek: 0,
+					classesCount: 0,
+					studentsCount: 0,
+				};
+			}
+
+			// Calculate hours per week for each subject
+			const subjectHours = new Map<string, number>();
+			teacherProfile.classes.forEach(tc => {
+				tc.class.timetables.forEach(tt => {
+					tt.periods.forEach(period => {
+						const subjectId = period.subject.id;
+						const currentHours = subjectHours.get(subjectId) || 0;
+						subjectHours.set(subjectId, currentHours + 1); // Assuming each period is 1 hour
+					});
+				});
+			});
+
+			const subjects = teacherProfile.subjects.map(ts => ({
+				id: ts.subject.id,
+				name: ts.subject.name,
+				hoursPerWeek: subjectHours.get(ts.subject.id) || 0,
+			}));
+
+			return {
+				subjects,
+				totalHoursPerWeek: Array.from(subjectHours.values()).reduce((a, b) => a + b, 0),
+				classesCount: teacherProfile.classes.length,
+				studentsCount: teacherProfile.classes.reduce((total, tc) => total + tc.class.students?.length || 0, 0),
 			};
 		}),
 
