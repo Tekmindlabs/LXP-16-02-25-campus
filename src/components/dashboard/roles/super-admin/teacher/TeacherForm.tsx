@@ -119,6 +119,20 @@ export default function TeacherForm({
     },
   });
 
+  const form = useForm<TeacherFormValues>({
+    resolver: zodResolver(teacherFormSchema),
+    defaultValues: {
+      name: initialData.name ?? "",
+      email: initialData.email ?? "",
+      phoneNumber: initialData.phoneNumber ?? "",
+      teacherType: initialData.teacherType ?? TeacherType.CLASS,
+      specialization: initialData.specialization ?? "",
+      campusIds: initialData.campusIds ?? [],
+      subjectIds: initialData.subjectIds ?? [],
+      classIds: initialData.classIds ?? [],
+    },
+  });
+
   // Set form default values when teacher data is loaded
   useEffect(() => {
     if (teacherData) {
@@ -134,20 +148,6 @@ export default function TeacherForm({
       });
     }
   }, [teacherData, form]);
-
-  const form = useForm<TeacherFormValues>({
-    resolver: zodResolver(teacherFormSchema),
-    defaultValues: {
-      name: initialData.name ?? "",
-      email: initialData.email ?? "",
-      phoneNumber: initialData.phoneNumber ?? "",
-      teacherType: initialData.teacherType ?? TeacherType.CLASS,
-      specialization: initialData.specialization ?? "",
-      campusIds: initialData.campusIds ?? [],
-      subjectIds: initialData.subjectIds ?? [],
-      classIds: initialData.classIds ?? [],
-    },
-  });
 
   const onSubmit = async (data: TeacherFormValues) => {
     setLoading(true);
