@@ -692,12 +692,12 @@ export const teacherRouter = createTRPCRouter({
 	getTeacherAnalytics: protectedProcedure
 		.input(z.object({
 			teacherId: z.string(),
+			startDate: z.date().optional(),
+			endDate: z.date().optional(),
 		}))
 		.query(async ({ ctx, input }) => {
-			const { teacherId } = input;
-
 			const teacherProfile = await ctx.prisma.teacherProfile.findFirst({
-				where: { userId: teacherId },
+				where: { userId: input.teacherId },
 				include: {
 					subjects: {
 						include: {
@@ -708,11 +708,18 @@ export const teacherRouter = createTRPCRouter({
 						include: {
 							class: {
 								include: {
+									students: true,
+									classGroup: true,
+									teachers: {
+										include: {
+											teacher: true
+										}
+									},
 									timetables: {
 										include: {
 											periods: {
 												where: {
-													teacherId: teacherId,
+													teacherId: input.teacherId,
 												},
 												include: {
 													subject: true,
@@ -728,22 +735,18 @@ export const teacherRouter = createTRPCRouter({
 			});
 
 			if (!teacherProfile) {
-				return {
-					subjects: [],
-					totalHoursPerWeek: 0,
-					classesCount: 0,
-					studentsCount: 0,
-				};
+				throw new Error("Teacher profile not found");
 			}
 
-			// Calculate hours per week for each subject
+			// Calculate hours per subject from timetable
 			const subjectHours = new Map<string, number>();
 			teacherProfile.classes.forEach(tc => {
-				tc.class.timetables.forEach(tt => {
-					tt.periods.forEach(period => {
-						const subjectId = period.subject.id;
-						const currentHours = subjectHours.get(subjectId) || 0;
-						subjectHours.set(subjectId, currentHours + 1); // Assuming each period is 1 hour
+				tc.class.timetables?.forEach(tt => {
+					tt.periods?.forEach(period => {
+						if (period.subject) {
+							const current = subjectHours.get(period.subject.id) || 0;
+							subjectHours.set(period.subject.id, current + 1);
+						}
 					});
 				});
 			});
@@ -754,75 +757,15 @@ export const teacherRouter = createTRPCRouter({
 				hoursPerWeek: subjectHours.get(ts.subject.id) || 0,
 			}));
 
-			return {
+			// Calculate analytics with proper null checks
+			const analytics = {
 				subjects,
 				totalHoursPerWeek: Array.from(subjectHours.values()).reduce((a, b) => a + b, 0),
 				classesCount: teacherProfile.classes.length,
-				studentsCount: teacherProfile.classes.reduce((total, tc) => total + tc.class.students?.length || 0, 0),
+				studentsCount: teacherProfile.classes.reduce((total, tc) => total + (tc.class?.students?.length ?? 0), 0),
+				// Add any additional analytics based on startDate and endDate if provided
 			};
-		}),
 
-	getTeacherAnalytics: protectedProcedure
-		.input(z.object({
-			teacherId: z.string(),
-			startDate: z.date().optional(),
-			endDate: z.date().optional(),
-		}))
-		.query(async ({ ctx, input }) => {
-			const teacherProfile = await ctx.prisma.teacherProfile.findFirst({
-				where: {
-					userId: input.teacherId,
-				},
-			});
-
-			if (!teacherProfile) {
-				throw new Error("Teacher profile not found");
-			}
-
-			// Get teacher's classes with students
-			const classes = await ctx.prisma.teacherClass.findMany({
-				where: { 
-					teacherId: teacherProfile.id,
-					status: Status.ACTIVE 
-				},
-				include: {
-					class: {
-						include: {
-							students: true,
-							classGroup: true,
-							teachers: {
-								include: {
-									teacher: true
-								}
-							}
-						}
-					}
-				}
-			});
-
-			// Calculate weekly teaching hours
-			const weeklyHours: WeeklyHours[] = [
-				{ dayName: 'Monday', totalHours: 4 },
-				{ dayName: 'Tuesday', totalHours: 3 },
-				{ dayName: 'Wednesday', totalHours: 4 },
-				{ dayName: 'Thursday', totalHours: 3 },
-				{ dayName: 'Friday', totalHours: 2 },
-			];
-
-			// Calculate class metrics
-			const classMetrics: ClassMetrics[] = classes.map(tc => ({
-				classId: tc.classId,
-				className: tc.class?.classGroup?.name ?? 'Unnamed Class',
-				averageScore: 85, // Placeholder - implement actual calculation
-				totalStudents: tc.class?.students?.length ?? 0,
-				completedAssignments: 0 // Placeholder - implement actual calculation
-			}));
-
-			return {
-				weeklyHours,
-				classMetrics,
-				totalClasses: classes.length,
-				totalStudents: classes.reduce((acc, tc) => acc + (tc.class?.students?.length ?? 0), 0),
-			};
+			return analytics;
 		}),
 });
