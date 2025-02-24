@@ -71,6 +71,8 @@ export function MultiSelect<T extends string | number = string>({
 										? safeValue.filter(v => v !== option.value)
 										: [...safeValue, option.value];
 									onChange(newValue);
+									// Keep the popover open
+									setOpen(true);
 								}}
 							>
 								<Check
